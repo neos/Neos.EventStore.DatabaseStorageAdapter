@@ -26,11 +26,26 @@ class DatabaseEventStorage implements EventStorageInterface
     protected $connectionFactory;
 
     /**
+     * @var array
+     */
+    protected $runtimeCache = [];
+
+    /**
+     * @var array
+     */
+    protected $runtimeVersionCache = [];
+
+    /**
      * @param string $identifier
      * @return EventStreamData
      */
     public function load(string $identifier)
     {
+        $version = $this->getCurrentVersion($identifier);
+        $cacheKey = $identifier . '.' . $version;
+        if (isset($this->runtimeCache[$cacheKey])) {
+            return $this->runtimeCache[$cacheKey];
+        }
         $conn = $this->connectionFactory->get();
         $streamName = $this->connectionFactory->getStreamName();
         $queryBuilder = $conn->createQueryBuilder();
@@ -58,7 +73,11 @@ class DatabaseEventStorage implements EventStorageInterface
                 'payload' => json_decode($event['payload'], true),
             ];
         }
-        return new EventStreamData($identifier, $aggregateName, $data, $version);
+
+        $cacheKey = $identifier . '.' . $version;
+        $this->runtimeCache[$cacheKey] = new EventStreamData($identifier, $aggregateName, $data, $version);
+        
+        return $this->runtimeCache[$cacheKey];
     }
 
     /**
@@ -108,6 +127,9 @@ class DatabaseEventStorage implements EventStorageInterface
             $query->execute();
         }
 
+        // Update the cache
+        $cacheKey = $identifier . '.' . $version;
+        $this->runtimeCache[$cacheKey] = $stream;
     }
 
     /**
@@ -137,6 +159,7 @@ class DatabaseEventStorage implements EventStorageInterface
             ->setParameter(0, $identifier);
 
         $version = (integer)$query->execute()->fetchColumn();
+        $this->runtimeVersionCache[$identifier] = $version;
         return $version ?: 1;
     }
 }
