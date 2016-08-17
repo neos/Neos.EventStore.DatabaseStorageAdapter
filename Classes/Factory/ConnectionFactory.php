@@ -49,6 +49,6 @@ class ConnectionFactory
      */
     public function getStreamName()
     {
-        return $this->configuration['streamName'];
+        return $this->configuration['name']['stream'];
     }
 }

@@ -2,7 +2,8 @@ Flowpack:
   EventStore:
     DatabaseStorageAdapter:
       persistence:
-        streamName: 'eventstream'
+        name:
+          stream: 'es_stream'
         backendOptions:
           driver: 'pdo_mysql'
           host: '192.168.99.100'

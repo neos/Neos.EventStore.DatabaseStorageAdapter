@@ -7,6 +7,8 @@ namespace Flowpack\EventStore\DatabaseStorageAdapter;
  * (c) Hand crafted with love in each details by medialib.tv
  */
 
+use Doctrine\DBAL\Types\Type;
+use Flowpack\Cqrs\Domain\Timestamp;
 use Flowpack\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Flowpack\EventStore\EventStreamData;
 use Flowpack\EventStore\Exception\ConcurrencyException;
@@ -98,6 +100,7 @@ class DatabaseEventStorage implements EventStorageInterface
 
         foreach ($stream->getData() as $eventData) {
             $payload = json_encode($eventData['payload'], JSON_PRETTY_PRINT);
+            $timestamp = \DateTime::createFromFormat(Timestamp::OUTPUT_FORMAT, $eventData['timestamp']);
             $query = $queryBuilder
                 ->insert($streamName)
                 ->values([
@@ -108,6 +111,7 @@ class DatabaseEventStorage implements EventStorageInterface
                     'payload' => '?',
                     'payload_hash' => '?',
                     'timestamp' => '?',
+                    'microseconds' => '?',
                     'aggregate_identifier' => '?',
                     'aggregate_name' => '?',
                     'aggregate_name_hash' => '?'
@@ -119,10 +123,23 @@ class DatabaseEventStorage implements EventStorageInterface
                     md5($eventData['name']),
                     $payload,
                     md5($payload),
-                    $eventData['timestamp'],
+                    $timestamp,
+                    $timestamp->format('u'),
                     $identifier,
                     $aggregateName,
                     md5($aggregateName)
+                ], [
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_INT,
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_STR,
+                    Type::DATETIME,
+                    \PDO::PARAM_INT,
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_STR,
+                    \PDO::PARAM_STR
                 ]);
             $query->execute();
         }

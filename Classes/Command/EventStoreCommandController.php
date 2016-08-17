@@ -33,21 +33,35 @@ class EventStoreCommandController extends CommandController
         $this->outputLine();
         $conn = $this->connectionFactory->get();
         $schema = $conn->getSchemaManager()->createSchema();
+        $toSchema = clone $schema;
 
-        $streamName = $this->connectionFactory->getStreamName();
-
-        if ($schema->hasTable($streamName)) {
-            $this->outputLine('<comment>!!</comment> Table %s exist ...', [$streamName]);
-            $this->outputLine();
-            $this->quit(1);
-        }
-
-        $this->outputLine('<info>++</info> Create table %s ...', [$streamName]);
-
-        EventStoreSchema::createStream($schema, $streamName);
+        EventStoreSchema::createStream($toSchema, $this->connectionFactory->getStreamName());
 
         $conn->beginTransaction();
-        $statements = $schema->toSql($conn->getDatabasePlatform());
+        $statements = $schema->getMigrateToSql($toSchema, $conn->getDatabasePlatform());
+        foreach ($statements as $statement) {
+            $this->outputLine('<info>++</info> %s', [$statement]);
+            $conn->exec($statement);
+        }
+        $conn->commit();
+
+        $this->outputLine();
+    }
+
+    /**
+     * Create eventstore database tables
+     */
+    public function dropSchemaCommand()
+    {
+        $this->outputLine();
+        $conn = $this->connectionFactory->get();
+        $schema = $conn->getSchemaManager()->createSchema();
+        $toSchema = clone $schema;
+
+        EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamName());
+
+        $conn->beginTransaction();
+        $statements = $schema->getMigrateToSql($toSchema, $conn->getDatabasePlatform());
         foreach ($statements as $statement) {
             $this->outputLine('<info>++</info> %s', [$statement]);
             $conn->exec($statement);
