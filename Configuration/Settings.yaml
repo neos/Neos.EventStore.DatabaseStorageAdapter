@@ -1,0 +1,11 @@
+Flowpack:
+  EventStore:
+    DatabaseStorageAdapter:
+      persistence:
+        streamName: 'eventstream'
+        backendOptions:
+          driver: 'pdo_mysql'
+          host: '192.168.99.100'
+          dbname: 'eventstore'
+          user: 'eventstore'
+          password: 'eventstore'

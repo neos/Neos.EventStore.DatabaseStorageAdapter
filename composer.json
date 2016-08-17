@@ -1,0 +1,18 @@
+{
+  "description": "",
+  "type": "neos-package",
+  "name": "flowpack/eventstore-databasestorageadapter",
+  "require": {
+    "flowpack/eventstore": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Flowpack\\EventStore\\DatabaseStorageAdapter\\": "Classes/"
+    }
+  },
+  "extra": {
+    "neos": {
+      "package-key": "Flowpack.EventStore.DatabaseStorageAdapter"
+    }
+  }
+}
