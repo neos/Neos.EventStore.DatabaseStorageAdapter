@@ -76,7 +76,7 @@ class DatabaseEventStorage implements EventStorageInterface
 
         $cacheKey = $identifier . '.' . $version;
         $this->runtimeCache[$cacheKey] = new EventStreamData($identifier, $aggregateName, $data, $version);
-        
+
         return $this->runtimeCache[$cacheKey];
     }
 
@@ -138,7 +138,7 @@ class DatabaseEventStorage implements EventStorageInterface
      */
     public function contains(string $identifier): bool
     {
-        return $this->getCurrentVersion($identifier) > 0 ? true : false;
+        return $this->getCurrentVersion($identifier) > 1 ? true : false;
     }
 
     /**
