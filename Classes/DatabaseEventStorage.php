@@ -116,7 +116,7 @@ class DatabaseEventStorage implements EventStorageInterface
      */
     public function contains(string $identifier): bool
     {
-        return $this->load($identifier) ? true : false;
+        return $this->getCurrentVersion($identifier) > 0 ? true : false;
     }
 
     /**
@@ -125,10 +125,18 @@ class DatabaseEventStorage implements EventStorageInterface
      */
     public function getCurrentVersion(string $identifier): int
     {
-        $stream = $this->load($identifier);
-        if ($stream !== null) {
-            return $stream->getVersion();
-        }
-        return 1;
+        $conn = $this->connectionFactory->get();
+        $streamName = $this->connectionFactory->getStreamName();
+        $queryBuilder = $conn->createQueryBuilder();
+        $query = $queryBuilder
+            ->select('version')
+            ->from($streamName)
+            ->andWhere('aggregate_identifier = ?')
+            ->orderBy('version', 'DESC')
+            ->setMaxResults(1)
+            ->setParameter(0, $identifier);
+
+        $version = (integer)$query->execute()->fetchColumn();
+        return $version ?: 1;
     }
 }
