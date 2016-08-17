@@ -53,7 +53,10 @@ final class EventStoreSchema
         // Concurrency check on database level
         $eventStream->addUniqueIndex(['aggregate_identifier', 'version'], $streamName . '_m_v_uix');
 
-        $eventStream->addIndex(['payload_hash', 'aggregate_name_hash']);
+        $eventStream->addIndex(['aggregate_identifier'], $streamName . '_ai');
+
+        $eventStream->addIndex(['payload_hash'], $streamName . '_ph');
+        $eventStream->addIndex(['aggregate_name_hash'], $streamName . '_anh');
     }
 
     /**
