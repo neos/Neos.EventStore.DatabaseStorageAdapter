@@ -54,13 +54,9 @@ class DatabaseEventStorage implements EventStorageInterface
         $query = $queryBuilder
             ->select('aggregate_name, version, name, aggregate_identifier, timestamp, payload')
             ->from($streamName)
-            ->andWhere('aggregate_identifier = ?')
-            ->orderBy('version')
-            ->setParameter(0, $identifier);
-        $count = $query->execute()->rowCount();
-        if ($count === 0) {
-            return null;
-        }
+            ->andWhere('aggregate_identifier = :aggregate_identifier')
+            ->orderBy('version', 'ASC')
+            ->setParameter('aggregate_identifier', $identifier);
 
         $data = [];
         $aggregateName = $version = null;
@@ -74,6 +70,10 @@ class DatabaseEventStorage implements EventStorageInterface
                 'timestamp' => $event['timestamp'],
                 'payload' => json_decode($event['payload'], true),
             ];
+        }
+
+        if ($data === []) {
+            return null;
         }
 
         $cacheKey = $identifier . '.' . $version;
@@ -104,42 +104,42 @@ class DatabaseEventStorage implements EventStorageInterface
             $query = $queryBuilder
                 ->insert($streamName)
                 ->values([
-                    'identifier' => '?',
-                    'version' => '?',
-                    'name' => '?',
-                    'name_hash' => '?',
-                    'payload' => '?',
-                    'payload_hash' => '?',
-                    'timestamp' => '?',
-                    'microseconds' => '?',
-                    'aggregate_identifier' => '?',
-                    'aggregate_name' => '?',
-                    'aggregate_name_hash' => '?'
+                    'identifier' => ':identifier',
+                    'version' => ':version',
+                    'name' => ':name',
+                    'name_hash' => ':name_hash',
+                    'payload' => ':payload',
+                    'payload_hash' => ':payload_hash',
+                    'timestamp' => ':timestamp',
+                    'microseconds' => ':microseconds',
+                    'aggregate_identifier' => ':aggregate_identifier',
+                    'aggregate_name' => ':aggregate_name',
+                    'aggregate_name_hash' => ':aggregate_name_hash'
                 ])
                 ->setParameters([
-                    Algorithms::generateUUID(),
-                    $version,
-                    $eventData['name'],
-                    md5($eventData['name']),
-                    $payload,
-                    md5($payload),
-                    $timestamp,
-                    $timestamp->format('u'),
-                    $identifier,
-                    $aggregateName,
-                    md5($aggregateName)
+                    'identifier' => Algorithms::generateUUID(),
+                    'version' => $version,
+                    'name' => $eventData['name'],
+                    'name_hash' => md5($eventData['name']),
+                    'payload' => $payload,
+                    'payload_hash' => md5($payload),
+                    'timestamp' => $timestamp,
+                    'microseconds' => $timestamp->format('u'),
+                    'aggregate_identifier' => $identifier,
+                    'aggregate_name' => $aggregateName,
+                    'aggregate_name_hash' => md5($aggregateName)
                 ], [
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_INT,
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_STR,
-                    Type::DATETIME,
-                    \PDO::PARAM_INT,
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_STR,
-                    \PDO::PARAM_STR
+                    'identifier' => \PDO::PARAM_STR,
+                    'version' => \PDO::PARAM_INT,
+                    'name' => \PDO::PARAM_STR,
+                    'name_hash' => \PDO::PARAM_STR,
+                    'payload' => \PDO::PARAM_STR,
+                    'payload_hash' => \PDO::PARAM_STR,
+                    'timestamp' => Type::DATETIME,
+                    'microseconds' => \PDO::PARAM_INT,
+                    'aggregate_identifier' => \PDO::PARAM_STR,
+                    'aggregate_name' => \PDO::PARAM_STR,
+                    'aggregate_name_hash' => \PDO::PARAM_STR
                 ]);
             $query->execute();
         }
