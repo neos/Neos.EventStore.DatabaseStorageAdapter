@@ -44,7 +44,7 @@ class DatabaseEventStorage implements EventStorageInterface
     public function load(string $identifier)
     {
         $version = $this->getCurrentVersion($identifier);
-        $cacheKey = $identifier . '.' . $version;
+        $cacheKey = md5($identifier . '.' . $version);
         if (isset($this->runtimeCache[$cacheKey])) {
             return $this->runtimeCache[$cacheKey];
         }
@@ -59,10 +59,9 @@ class DatabaseEventStorage implements EventStorageInterface
             ->setParameter('aggregate_identifier', $identifier);
 
         $data = [];
-        $aggregateName = $version = null;
+        $aggregateName = null;
         foreach ($query->execute()->fetchAll() as $event) {
             $aggregateName = $event['aggregate_name'];
-            $version = $event['version'];
             $data[] = [
                 'class' => str_replace('.', '\\', $event['name']),
                 'aggregate_identifier' => $event['aggregate_identifier'],
@@ -76,7 +75,7 @@ class DatabaseEventStorage implements EventStorageInterface
             return null;
         }
 
-        $cacheKey = $identifier . '.' . $version;
+        $cacheKey = md5($identifier . '.' . $version);
         $this->runtimeCache[$cacheKey] = new EventStreamData($identifier, $aggregateName, $data, $version);
 
         return $this->runtimeCache[$cacheKey];
@@ -143,10 +142,6 @@ class DatabaseEventStorage implements EventStorageInterface
                 ]);
             $query->execute();
         }
-
-        // Update the cache
-        $cacheKey = $identifier . '.' . $version;
-        $this->runtimeCache[$cacheKey] = $stream;
     }
 
     /**
