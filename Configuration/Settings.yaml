@@ -3,6 +3,7 @@ Ttree:
     DatabaseStorageAdapter:
       persistence:
         name:
+          commit: 'es_commit'
           stream: 'es_stream'
         backendOptions:
           driver: 'pdo_mysql'

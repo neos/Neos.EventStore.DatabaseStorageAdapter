@@ -35,6 +35,7 @@ class EventStoreCommandController extends CommandController
         $schema = $conn->getSchemaManager()->createSchema();
         $toSchema = clone $schema;
 
+        EventStoreSchema::createCommit($toSchema, $this->connectionFactory->getCommitName());
         EventStoreSchema::createStream($toSchema, $this->connectionFactory->getStreamName());
 
         $conn->beginTransaction();
@@ -58,7 +59,13 @@ class EventStoreCommandController extends CommandController
         $schema = $conn->getSchemaManager()->createSchema();
         $toSchema = clone $schema;
 
-        EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamName());
+        if ($schema->hasTable($this->connectionFactory->getCommitName())) {
+            EventStoreSchema::drop($toSchema, $this->connectionFactory->getCommitName());
+        }
+
+        if ($schema->hasTable($this->connectionFactory->getStreamName())) {
+            EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamName());
+        }
 
         $conn->beginTransaction();
         $statements = $schema->getMigrateToSql($toSchema, $conn->getDatabasePlatform());

@@ -47,6 +47,14 @@ class ConnectionFactory
     /**
      * @return string
      */
+    public function getCommitName()
+    {
+        return $this->configuration['name']['commit'];
+    }
+
+    /**
+     * @return string
+     */
     public function getStreamName()
     {
         return $this->configuration['name']['stream'];
