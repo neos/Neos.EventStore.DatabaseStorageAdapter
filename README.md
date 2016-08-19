@@ -4,11 +4,11 @@ _This package is currently under development and not fully working, please don't
 
 This package is inspired by [Prooph EventStore Doctrine Adapter](https://github.com/prooph/event-store-doctrine-adapter).
 
-This package provide an EventStore implementation for ```Flowpack.EventStore``` based on Doctrine DBAL.
+This package provide an EventStore implementation for ```Ttree.EventStore``` based on Doctrine DBAL.
 
 ## Installation
 
-    composer require flowpack/eventstore-databasestorageadapter dev-master
+    composer require ttree/eventstore-databasestorageadapter dev-master
 
 Check ```Settings.yaml``` to configure the database connection used by the event storage. The event storage dont use the
 main Flow persistence connection for tunning reasons (different database between the event store and the read projections

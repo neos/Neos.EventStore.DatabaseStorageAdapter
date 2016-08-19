@@ -1,18 +1,18 @@
 <?php
-namespace Flowpack\EventStore\DatabaseStorageAdapter;
+namespace Ttree\EventStore\DatabaseStorageAdapter;
 
 /*
- * This file is part of the Flowpack.Cqrs package.
+ * This file is part of the Ttree.Cqrs package.
  *
  * (c) Hand crafted with love in each details by medialib.tv
  */
 
 use Doctrine\DBAL\Types\Type;
-use Flowpack\Cqrs\Domain\Timestamp;
-use Flowpack\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
-use Flowpack\EventStore\EventStreamData;
-use Flowpack\EventStore\Exception\ConcurrencyException;
-use Flowpack\EventStore\Storage\EventStorageInterface;
+use Ttree\Cqrs\Domain\Timestamp;
+use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Ttree\EventStore\EventStreamData;
+use Ttree\EventStore\Exception\ConcurrencyException;
+use Ttree\EventStore\Storage\EventStorageInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Utility\Algorithms;
 

@@ -1,2 +1,2 @@
-Flowpack\EventStore\Storage\EventStorageInterface:
-  className: Flowpack\EventStore\DatabaseStorageAdapter\DatabaseEventStorage
+Ttree\EventStore\Storage\EventStorageInterface:
+  className: Ttree\EventStore\DatabaseStorageAdapter\DatabaseEventStorage

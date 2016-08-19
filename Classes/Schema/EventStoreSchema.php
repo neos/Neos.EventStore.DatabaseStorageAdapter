@@ -1,8 +1,8 @@
 <?php
-namespace Flowpack\EventStore\DatabaseStorageAdapter\Schema;
+namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
 
 /*
- * This file is part of the Flowpack.Cqrs package.
+ * This file is part of the Ttree.Cqrs package.
  *
  * (c) Hand crafted with love in each details by medialib.tv
  */

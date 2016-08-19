@@ -1,14 +1,14 @@
 <?php
-namespace Flowpack\EventStore\DatabaseStorageAdapter\Command;
+namespace Ttree\EventStore\DatabaseStorageAdapter\Command;
 
 /*
- * This file is part of the Flowpack.Cqrs package.
+ * This file is part of the Ttree.Cqrs package.
  *
  * (c) Hand crafted with love in each details by medialib.tv
  */
 
-use Flowpack\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
-use Flowpack\EventStore\DatabaseStorageAdapter\Schema\EventStoreSchema;
+use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Ttree\EventStore\DatabaseStorageAdapter\Schema\EventStoreSchema;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Cli\CommandController;
 

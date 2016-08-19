@@ -1,18 +1,18 @@
 {
   "description": "",
   "type": "neos-package",
-  "name": "flowpack/eventstore-databasestorageadapter",
+  "name": "ttree/eventstore-databasestorageadapter",
   "require": {
-    "flowpack/eventstore": "*"
+    "ttree/eventstore": "*"
   },
   "autoload": {
     "psr-4": {
-      "Flowpack\\EventStore\\DatabaseStorageAdapter\\": "Classes/"
+      "Ttree\\EventStore\\DatabaseStorageAdapter\\": "Classes/"
     }
   },
   "extra": {
     "neos": {
-      "package-key": "Flowpack.EventStore.DatabaseStorageAdapter"
+      "package-key": "Ttree.EventStore.DatabaseStorageAdapter"
     }
   }
 }
