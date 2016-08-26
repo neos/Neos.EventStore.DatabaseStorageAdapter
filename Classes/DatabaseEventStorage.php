@@ -10,16 +10,17 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
-use Ttree\EventStore\Exception\ConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
+use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Utility\Algorithms;
 
 /**
  * Database event storage, for testing purpose
  */
-class DatabaseEventStorage implements EventStorageInterface
+class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInterface
 {
     /**
      * @var ConnectionFactory
@@ -79,14 +80,14 @@ class DatabaseEventStorage implements EventStorageInterface
 
     /**
      * @param string $identifier
+     * @param string $aggregateIdentifier
      * @param string $aggregateName
      * @param array $data
      * @param integer $version
-     * @throws ConcurrencyException
      */
-    public function commit(string $identifier, string $aggregateName, array $data, int $version)
+    public function commit(string $identifier, string $aggregateIdentifier, string $aggregateName, array $data, int $version)
     {
-        $stream = new EventStreamData($identifier, $aggregateName, $data, $version);
+        $stream = new EventStreamData($aggregateIdentifier, $aggregateName, $data, $version);
         $conn = $this->connectionFactory->get();
 
         $commitName = $this->connectionFactory->getCommitName();
@@ -104,6 +105,7 @@ class DatabaseEventStorage implements EventStorageInterface
         $query = $queryBuilder
             ->insert($commitName)
             ->values([
+                'identifier' => ':identifier',
                 'version' => ':version',
                 'data' => ':data',
                 'data_hash' => ':data_hash',
@@ -114,15 +116,17 @@ class DatabaseEventStorage implements EventStorageInterface
                 'aggregate_name_hash' => ':aggregate_name_hash'
             ])
             ->setParameters([
+                'identifier' => $identifier,
                 'version' => $version,
                 'data' => $streamData,
                 'data_hash' => md5($streamData),
                 'created_at' => $now,
                 'created_at_microseconds' => $now->format('u'),
-                'aggregate_identifier' => $identifier,
+                'aggregate_identifier' => $aggregateIdentifier,
                 'aggregate_name' => $aggregateName,
                 'aggregate_name_hash' => md5($aggregateName)
             ], [
+                'identifier' => \PDO::PARAM_STR,
                 'version' => \PDO::PARAM_INT,
                 'data' => \PDO::PARAM_STR,
                 'data_hash' => \PDO::PARAM_STR,
@@ -135,16 +139,17 @@ class DatabaseEventStorage implements EventStorageInterface
 
         $query->execute();
 
-        $this->commitStream($version, $identifier, $aggregateName, $stream);
+        $this->commitStream($identifier, $version, $aggregateIdentifier, $aggregateName, $stream);
     }
 
     /**
+     * @param string $commitIdentifier
      * @param string $commitVersion
      * @param string $aggregateIdentifier
      * @param string $aggregateName
      * @param EventStreamData $streamData
      */
-    protected function commitStream(string $commitVersion, string $aggregateIdentifier, string $aggregateName, EventStreamData $streamData)
+    protected function commitStream(string $commitIdentifier, int $commitVersion, string $aggregateIdentifier, string $aggregateName, EventStreamData $streamData)
     {
         $conn = $this->connectionFactory->get();
         $queryBuilder = $conn->createQueryBuilder();
@@ -157,10 +162,11 @@ class DatabaseEventStorage implements EventStorageInterface
                 ->insert($streamName)
                 ->values([
                     'identifier' => ':identifier',
+                    'commit_identifier' => ':commit_identifier',
                     'commit_version' => ':commit_version',
                     'version' => ':version',
-                    'name' => ':name',
-                    'name_hash' => ':name_hash',
+                    'type' => ':type',
+                    'type_hash' => ':type_hash',
                     'payload' => ':payload',
                     'payload_hash' => ':payload_hash',
                     'created_at' => ':created_at',
@@ -171,10 +177,11 @@ class DatabaseEventStorage implements EventStorageInterface
                 ])
                 ->setParameters([
                     'identifier' => Algorithms::generateUUID(),
+                    'commit_identifier' => $commitIdentifier,
                     'commit_version' => $commitVersion,
                     'version' => $version,
-                    'name' => $eventData['name'],
-                    'name_hash' => md5($eventData['name']),
+                    'type' => $eventData['type'],
+                    'type_hash' => md5($eventData['type']),
                     'payload' => $payload,
                     'payload_hash' => md5($payload),
                     'created_at' => $timestamp,
@@ -185,9 +192,10 @@ class DatabaseEventStorage implements EventStorageInterface
                 ], [
                     'identifier' => \PDO::PARAM_STR,
                     'commit_version' => \PDO::PARAM_STR,
+                    'commit_version' => \PDO::PARAM_INT,
                     'version' => \PDO::PARAM_INT,
-                    'name' => \PDO::PARAM_STR,
-                    'name_hash' => \PDO::PARAM_STR,
+                    'type' => \PDO::PARAM_STR,
+                    'type_hash' => \PDO::PARAM_STR,
                     'payload' => \PDO::PARAM_STR,
                     'payload_hash' => \PDO::PARAM_STR,
                     'created_at' => Type::DATETIME,
@@ -230,5 +238,33 @@ class DatabaseEventStorage implements EventStorageInterface
         $version = (integer)$query->execute()->fetchColumn();
         $this->runtimeVersionCache[$identifier] = $version;
         return $version ?: 1;
+    }
+
+    /**
+     * @param string $identifier
+     * @param integer $untilVersion
+     * @return EventStream
+     */
+    public function getPreviousEvents(string $identifier, int $untilVersion): EventStream
+    {
+        $conn = $this->connectionFactory->get();
+        $streamName = $this->connectionFactory->getStreamName();
+        $queryBuilder = $conn->createQueryBuilder();
+        $query = $queryBuilder
+            ->select('*')
+            ->from($streamName)
+            ->andWhere('aggregate_identifier = :aggregate_identifier AND commit_version >= :untilVersion')
+            ->orderBy('commit_version', 'DESC')
+            ->setParameter('aggregate_identifier', $identifier)
+            ->setParameter('untilVersion', $untilVersion);
+
+        $events = [];
+        $aggregateName = null;
+        foreach ($query->execute()->fetchAll() as $event) {
+            $aggregateName = $event['aggregate_name'];
+            $events[] = $event;
+        }
+
+        return new EventStream($identifier, $aggregateName, $events, $untilVersion);
     }
 }

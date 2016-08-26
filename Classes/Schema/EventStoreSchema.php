@@ -25,6 +25,9 @@ final class EventStoreSchema
     {
         $table = $schema->createTable($name);
 
+        // UUID4 of the commit
+        $table->addColumn('identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
+
         // Version of the aggregate after event was recorded
         $table->addColumn('version', Type::BIGINT, ['unsigned' => true]);
 
@@ -42,6 +45,8 @@ final class EventStoreSchema
         // Class of the linked aggregate
         $table->addColumn('aggregate_name', Type::STRING, ['length' => 1000]);
         $table->addColumn('aggregate_name_hash', Type::STRING, ['length' => 32]);
+
+        $table->setPrimaryKey(['identifier']);
 
         // Concurrency check on database level
         $table->addUniqueIndex(['version'], $name . '_v_uix');
@@ -65,14 +70,15 @@ final class EventStoreSchema
         $table->addColumn('identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
 
         // Commit version
+        $table->addColumn('commit_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
         $table->addColumn('commit_version', Type::BIGINT, ['unsigned' => true]);
 
         // Version of the event
         $table->addColumn('version', Type::BIGINT, ['unsigned' => true]);
 
         // Name of the event
-        $table->addColumn('name', Type::STRING, ['length' => 1000]);
-        $table->addColumn('name_hash', Type::STRING, ['length' => 32]);
+        $table->addColumn('type', Type::STRING, ['length' => 1000]);
+        $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
         $table->addColumn('payload', Type::TEXT);
@@ -91,7 +97,7 @@ final class EventStoreSchema
 
         $table->setPrimaryKey(['identifier']);
 
-        $table->addIndex(['aggregate_identifier'], $name . '_ai');
+        $table->addIndex(['aggregate_identifier', 'commit_version'], $name . '_ai_cv');
 
         $table->addIndex(['payload_hash'], $name . '_ph');
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
