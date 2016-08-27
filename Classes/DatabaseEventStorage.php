@@ -7,17 +7,18 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
  * (c) Hand crafted with love in each details by medialib.tv
  */
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
 use Ttree\Cqrs\Event\EventInterface;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
+use Ttree\EventStore\Exception\StorageConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
-use TYPO3\Flow\Utility\Algorithms;
 use Zumba\JsonSerializer\JsonSerializer;
 
 /**
@@ -94,6 +95,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
      * @param string $aggregateName
      * @param array $data
      * @param integer $version
+     * @throws StorageConcurrencyException
      */
     public function commit(string $streamIdentifier, string $aggregateIdentifier, string $aggregateName, array $data, int $version)
     {
@@ -105,7 +107,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $queryBuilder = $conn->createQueryBuilder();
 
         $streamData = array_map(function (EventInterface $event) {
-           return $this->propertyMapper->convert($event, 'array');
+            return $this->propertyMapper->convert($event, 'array');
         }, $stream->getData());;
 
         $now = Timestamp::create();
@@ -146,7 +148,16 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'aggregate_name_hash' => \PDO::PARAM_STR
             ]);
 
-        $query->execute();
+        try {
+            $query->execute();
+        } catch (UniqueConstraintViolationException $exception) {
+            throw new StorageConcurrencyException(
+                sprintf(
+                    'Aggregate root versions mismatch, storage exception, version %d',
+                    $version
+                ), [], 1472296099
+            );
+        }
 
         $this->commitStream($streamIdentifier, $version, $aggregateIdentifier, $aggregateName, $stream);
     }
@@ -167,7 +178,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $serializer = new JsonSerializer();
         /** @var EventInterface $event */
         foreach ($streamData->getData() as $event) {
-            $payload = $serializer->serialize($event->getPayload());
+            $data = json_encode($this->propertyMapper->convert($event, 'array'), JSON_PRETTY_PRINT);
             $timestamp = $event->getTimestamp();
             $query = $queryBuilder
                 ->insert($streamName)
@@ -177,8 +188,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => ':version',
                     'type' => ':type',
                     'type_hash' => ':type_hash',
-                    'payload' => ':payload',
-                    'payload_hash' => ':payload_hash',
+                    'data' => ':data',
                     'created_at' => ':created_at',
                     'created_at_microseconds' => ':created_at_microseconds',
                     'aggregate_identifier' => ':aggregate_identifier',
@@ -191,8 +201,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => $version,
                     'type' => $event->getName(),
                     'type_hash' => md5($event->getName()),
-                    'payload' => $payload,
-                    'payload_hash' => md5($payload),
+                    'data' => $data,
                     'created_at' => $timestamp,
                     'created_at_microseconds' => $timestamp->format('u'),
                     'aggregate_identifier' => $aggregateIdentifier,
@@ -204,8 +213,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
-                    'payload' => \PDO::PARAM_STR,
-                    'payload_hash' => \PDO::PARAM_STR,
+                    'data' => \PDO::PARAM_STR,
                     'created_at' => Type::DATETIME,
                     'created_at_microseconds' => \PDO::PARAM_INT,
                     'aggregate_identifier' => \PDO::PARAM_STR,
@@ -259,7 +267,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $streamName = $this->connectionFactory->getStreamName();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('*')
+            ->select('data')
             ->from($streamName)
             ->andWhere('aggregate_identifier = :aggregate_identifier AND commit_version >= :untilVersion')
             ->orderBy('commit_version', 'DESC')
@@ -268,8 +276,10 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $events = [];
         $aggregateName = null;
-        foreach ($query->execute()->fetchAll() as $event) {
-            $aggregateName = $event['aggregate_name'];
+        foreach ($query->execute()->fetchAll() as $eventData) {
+            /** @var EventInterface $event */
+            $event = $this->propertyMapper->convert($eventData['data'], EventInterface::class);
+            $aggregateName = $event->getAggregateName();
             $events[] = $event;
         }
 

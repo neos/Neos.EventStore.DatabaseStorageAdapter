@@ -80,8 +80,7 @@ final class EventStoreSchema
         $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
-        $table->addColumn('payload', Type::TEXT);
-        $table->addColumn('payload_hash', Type::STRING, ['length' => 32]);
+        $table->addColumn('data', Type::TEXT);
 
         // Timestamp of the event
         $table->addColumn('created_at', Type::DATETIME);
@@ -99,7 +98,6 @@ final class EventStoreSchema
 
         $table->addIndex(['aggregate_identifier', 'commit_version'], $name . '_ai_cv');
 
-        $table->addIndex(['payload_hash'], $name . '_ph');
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
     }
 
