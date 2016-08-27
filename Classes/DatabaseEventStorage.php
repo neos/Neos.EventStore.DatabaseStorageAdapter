@@ -247,7 +247,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $version = (integer)$query->execute()->fetchColumn();
         $this->runtimeVersionCache[$identifier] = $version;
-        return $version ?: 1;
+        return $version ?: 0;
     }
 
     /**
