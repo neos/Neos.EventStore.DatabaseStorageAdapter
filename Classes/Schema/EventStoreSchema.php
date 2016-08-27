@@ -70,7 +70,6 @@ final class EventStoreSchema
         $table->addColumn('identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
 
         // Commit version
-        $table->addColumn('commit_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
         $table->addColumn('commit_version', Type::BIGINT, ['unsigned' => true]);
 
         // Version of the event
@@ -95,7 +94,8 @@ final class EventStoreSchema
         $table->addColumn('aggregate_name', Type::STRING, ['length' => 1000]);
         $table->addColumn('aggregate_name_hash', Type::STRING, ['length' => 32]);
 
-        $table->setPrimaryKey(['identifier']);
+        // Concurrency check on database level
+        $table->setPrimaryKey(['identifier', 'version'], $name . '_v_uix');
 
         $table->addIndex(['aggregate_identifier', 'commit_version'], $name . '_ai_cv');
 

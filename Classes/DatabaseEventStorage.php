@@ -9,13 +9,16 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
+use Ttree\Cqrs\Event\EventInterface;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Property\PropertyMapper;
 use TYPO3\Flow\Utility\Algorithms;
+use Zumba\JsonSerializer\JsonSerializer;
 
 /**
  * Database event storage, for testing purpose
@@ -27,6 +30,12 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
      * @Flow\Inject
      */
     protected $connectionFactory;
+
+    /**
+     * @var PropertyMapper
+     * @Flow\Inject
+     */
+    protected $propertyMapper;
 
     /**
      * @var array
@@ -65,8 +74,9 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
             if ($aggregateName === null) {
                 $aggregateName = $commit['aggregate_name'];
             }
-            $commitData = json_decode($commit['data'], true);
-            $data = array_merge($data, $commitData);
+            $data = array_merge($data, array_map(function (array $eventData) {
+                return $this->propertyMapper->convert($eventData, EventInterface::class);
+            }, json_decode($commit['data'], true)));
         }
         if ($aggregateName === null) {
             return null;
@@ -79,13 +89,13 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
     }
 
     /**
-     * @param string $identifier
+     * @param string $streamIdentifier
      * @param string $aggregateIdentifier
      * @param string $aggregateName
      * @param array $data
      * @param integer $version
      */
-    public function commit(string $identifier, string $aggregateIdentifier, string $aggregateName, array $data, int $version)
+    public function commit(string $streamIdentifier, string $aggregateIdentifier, string $aggregateName, array $data, int $version)
     {
         $stream = new EventStreamData($aggregateIdentifier, $aggregateName, $data, $version);
         $conn = $this->connectionFactory->get();
@@ -94,10 +104,9 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $queryBuilder = $conn->createQueryBuilder();
 
-        $streamData = [];
-        foreach ($stream->getData() as $eventData) {
-            $streamData[] = $eventData;
-        }
+        $streamData = array_map(function (EventInterface $event) {
+           return $this->propertyMapper->convert($event, 'array');
+        }, $stream->getData());;
 
         $now = Timestamp::create();
 
@@ -116,7 +125,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'aggregate_name_hash' => ':aggregate_name_hash'
             ])
             ->setParameters([
-                'identifier' => $identifier,
+                'identifier' => $streamIdentifier,
                 'version' => $version,
                 'data' => $streamData,
                 'data_hash' => md5($streamData),
@@ -139,7 +148,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $query->execute();
 
-        $this->commitStream($identifier, $version, $aggregateIdentifier, $aggregateName, $stream);
+        $this->commitStream($streamIdentifier, $version, $aggregateIdentifier, $aggregateName, $stream);
     }
 
     /**
@@ -155,14 +164,15 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $queryBuilder = $conn->createQueryBuilder();
         $streamName = $this->connectionFactory->getStreamName();
         $version = 1;
-        foreach ($streamData->getData() as $eventData) {
-            $payload = json_encode($eventData['payload'], JSON_PRETTY_PRINT);
-            $timestamp = \DateTime::createFromFormat(Timestamp::OUTPUT_FORMAT, $eventData['created_at']);
+        $serializer = new JsonSerializer();
+        /** @var EventInterface $event */
+        foreach ($streamData->getData() as $event) {
+            $payload = $serializer->serialize($event->getPayload());
+            $timestamp = $event->getTimestamp();
             $query = $queryBuilder
                 ->insert($streamName)
                 ->values([
                     'identifier' => ':identifier',
-                    'commit_identifier' => ':commit_identifier',
                     'commit_version' => ':commit_version',
                     'version' => ':version',
                     'type' => ':type',
@@ -176,12 +186,11 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'aggregate_name_hash' => ':aggregate_name_hash'
                 ])
                 ->setParameters([
-                    'identifier' => Algorithms::generateUUID(),
-                    'commit_identifier' => $commitIdentifier,
+                    'identifier' => $commitIdentifier,
                     'commit_version' => $commitVersion,
                     'version' => $version,
-                    'type' => $eventData['type'],
-                    'type_hash' => md5($eventData['type']),
+                    'type' => $event->getName(),
+                    'type_hash' => md5($event->getName()),
                     'payload' => $payload,
                     'payload_hash' => md5($payload),
                     'created_at' => $timestamp,
@@ -192,7 +201,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 ], [
                     'identifier' => \PDO::PARAM_STR,
                     'commit_version' => \PDO::PARAM_STR,
-                    'commit_version' => \PDO::PARAM_INT,
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
