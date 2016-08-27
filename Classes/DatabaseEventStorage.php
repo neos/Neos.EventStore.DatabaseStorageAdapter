@@ -8,12 +8,14 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
  */
 
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
 use Ttree\Cqrs\Event\EventInterface;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
+use Ttree\EventStore\Exception\AggregateNotFoundException;
 use Ttree\EventStore\Exception\StorageConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
@@ -63,22 +65,14 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $commitName = $this->connectionFactory->getCommitName();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('version, data, created_at, created_at_microseconds, aggregate_identifier, aggregate_name')
+            ->select('data, aggregate_name')
             ->from($commitName)
             ->andWhere('aggregate_identifier = :aggregate_identifier')
             ->orderBy('version', 'ASC')
             ->setParameter('aggregate_identifier', $identifier);
 
-        $aggregateName = null;
-        $data = [];
-        foreach ($query->execute()->fetchAll() as $commit) {
-            if ($aggregateName === null) {
-                $aggregateName = $commit['aggregate_name'];
-            }
-            $data = array_merge($data, array_map(function (array $eventData) {
-                return $this->propertyMapper->convert($eventData, EventInterface::class);
-            }, json_decode($commit['data'], true)));
-        }
+        list($aggregateName, $data) = $this->eventStreamFromCommitQuery($query);
+
         if ($aggregateName === null) {
             return null;
         }
