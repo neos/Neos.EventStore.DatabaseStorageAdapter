@@ -260,29 +260,47 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
      * @param string $identifier
      * @param integer $untilVersion
      * @return EventStream
+     * @throws AggregateNotFoundException
      */
     public function getPreviousEvents(string $identifier, int $untilVersion): EventStream
     {
         $conn = $this->connectionFactory->get();
-        $streamName = $this->connectionFactory->getStreamName();
+        $commitName = $this->connectionFactory->getCommitName();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('data')
-            ->from($streamName)
-            ->andWhere('aggregate_identifier = :aggregate_identifier AND commit_version >= :untilVersion')
-            ->orderBy('commit_version', 'DESC')
+            ->select('data, aggregate_name')
+            ->from($commitName)
+            ->andWhere('aggregate_identifier = :aggregate_identifier AND version >= :untilVersion')
+            ->orderBy('version', 'DESC')
             ->setParameter('aggregate_identifier', $identifier)
             ->setParameter('untilVersion', $untilVersion);
 
-        $events = [];
-        $aggregateName = null;
-        foreach ($query->execute()->fetchAll() as $eventData) {
-            /** @var EventInterface $event */
-            $event = $this->propertyMapper->convert($eventData['data'], EventInterface::class);
-            $aggregateName = $event->getAggregateName();
-            $events[] = $event;
+        list($aggregateName, $data) = $this->eventStreamFromCommitQuery($query);
+
+        if ($aggregateName === null) {
+            throw new AggregateNotFoundException(sprintf('Aggregate with identifier %s, version=%d, not found', $identifier, $untilVersion), 1472306367);
         }
 
-        return new EventStream($identifier, $aggregateName, $events, $untilVersion);
+        return new EventStream($identifier, $aggregateName, $data, $untilVersion);
+    }
+
+    /**
+     * @param QueryBuilder $query
+     * @return array
+     */
+    protected function eventStreamFromCommitQuery(QueryBuilder $query): array
+    {
+        $aggregateName = null;
+        $data = [];
+        foreach ($query->execute()->fetchAll() as $commit) {
+            $aggregateName = $commit['aggregate_name'];
+            $data = array_merge($data, array_map(function (array $eventData) {
+                return $this->propertyMapper->convert($eventData, EventInterface::class);
+            }, json_decode($commit['data'], true)));
+        }
+        if ($aggregateName === null) {
+            return [null, $data];
+        }
+        return [$aggregateName, $data];
     }
 }
