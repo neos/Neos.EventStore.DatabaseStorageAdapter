@@ -174,7 +174,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
             $event = $eventTransport->getEvent();
             $data = $this->propertyMapper->convert($eventTransport, 'string');
             $timestamp = $eventTransport->getTimestamp();
-            $name = EventType::create($event);
+            $name = EventType::get($event);
             $query = $queryBuilder
                 ->insert($streamName)
                 ->values([
