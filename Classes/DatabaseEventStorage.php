@@ -11,7 +11,8 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
-use Ttree\Cqrs\Event\EventInterface;
+use Ttree\Cqrs\Event\EventTransport;
+use Ttree\Cqrs\Event\EventType;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
@@ -21,7 +22,6 @@ use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
-use Zumba\JsonSerializer\JsonSerializer;
 
 /**
  * Database event storage, for testing purpose
@@ -100,8 +100,8 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $queryBuilder = $conn->createQueryBuilder();
 
-        $streamData = array_map(function (EventInterface $event) {
-            return $this->propertyMapper->convert($event, 'array');
+        $streamData = array_map(function (EventTransport $eventTransport) {
+            return $this->propertyMapper->convert($eventTransport, 'array');
         }, $stream->getData());;
 
         $now = Timestamp::create();
@@ -169,11 +169,12 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $queryBuilder = $conn->createQueryBuilder();
         $streamName = $this->connectionFactory->getStreamName();
         $version = 1;
-        $serializer = new JsonSerializer();
-        /** @var EventInterface $event */
-        foreach ($streamData->getData() as $event) {
-            $data = json_encode($this->propertyMapper->convert($event, 'array'), JSON_PRETTY_PRINT);
-            $timestamp = $event->getTimestamp();
+        /** @var EventTransport $eventTransport */
+        foreach ($streamData->getData() as $eventTransport) {
+            $event = $eventTransport->getEvent();
+            $data = $this->propertyMapper->convert($eventTransport, 'string');
+            $timestamp = $eventTransport->getTimestamp();
+            $name = EventType::create($event);
             $query = $queryBuilder
                 ->insert($streamName)
                 ->values([
@@ -193,8 +194,8 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'identifier' => $commitIdentifier,
                     'commit_version' => $commitVersion,
                     'version' => $version,
-                    'type' => $event->getName(),
-                    'type_hash' => md5($event->getName()),
+                    'type' => $name,
+                    'type_hash' => md5($name),
                     'data' => $data,
                     'created_at' => $timestamp,
                     'created_at_microseconds' => $timestamp->format('u'),
@@ -289,7 +290,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         foreach ($query->execute()->fetchAll() as $commit) {
             $aggregateName = $commit['aggregate_name'];
             $data = array_merge($data, array_map(function (array $eventData) {
-                return $this->propertyMapper->convert($eventData, EventInterface::class);
+                return $this->propertyMapper->convert($eventData, EventTransport::class);
             }, json_decode($commit['data'], true)));
         }
         if ($aggregateName === null) {
