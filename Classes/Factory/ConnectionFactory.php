@@ -10,6 +10,7 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Factory;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Types\Type;
 use TYPO3\Flow\Annotations as Flow;
 
 /**
@@ -41,6 +42,14 @@ class ConnectionFactory
         $config = new Configuration();
         $connectionParams = $this->configuration['backendOptions'];
         $this->connection = DriverManager::getConnection($connectionParams, $config);
+
+        if (isset($this->configuration['mappingTypes']) && is_array($this->configuration['mappingTypes'])) {
+            foreach ($this->configuration['mappingTypes'] as $typeName => $typeConfiguration) {
+                Type::addType($typeName, $typeConfiguration['className']);
+                $this->connection->getDatabasePlatform()->registerDoctrineTypeMapping($typeConfiguration['dbType'], $typeName);
+            }
+        }
+        
         return $this->connection;
     }
 

@@ -5,9 +5,18 @@ Ttree:
         name:
           commit: 'es_commit'
           stream: 'es_stream'
+
         backendOptions:
           driver: 'pdo_mysql'
           host: '192.168.99.100'
           dbname: 'eventstore'
           user: 'eventstore'
           password: 'eventstore'
+
+        mappingTypes:
+          'flow_json_array':
+            dbType: 'json_array'
+            className: 'TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType'
+          'datetime_micro':
+            dbType: 'datetime'
+            className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType'

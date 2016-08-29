@@ -9,6 +9,8 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Type;
+use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 
 /**
  * Use this helper in a doctrine migrations script to set up the event store schema
@@ -36,8 +38,7 @@ final class EventStoreSchema
         $table->addColumn('data_hash', Type::STRING, ['length' => 32]);
 
         // Timestamp of the commit
-        $table->addColumn('created_at', Type::DATETIME);
-        $table->addColumn('created_at_microseconds', Type::INTEGER, ['unsigned' => true]);
+        $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);
 
         // UUID4 of linked aggregate
         $table->addColumn('aggregate_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
@@ -80,11 +81,10 @@ final class EventStoreSchema
         $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
-        $table->addColumn('properties', Type::TEXT);
+        $table->addColumn('properties', JsonArrayType::FLOW_JSON_ARRAY);
 
         // Timestamp of the event
-        $table->addColumn('created_at', Type::DATETIME);
-        $table->addColumn('created_at_microseconds', Type::INTEGER, ['unsigned' => true]);
+        $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);
 
         // UUID4 of linked aggregate
         $table->addColumn('aggregate_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);

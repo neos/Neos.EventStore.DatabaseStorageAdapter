@@ -15,6 +15,7 @@ use Ttree\Cqrs\Event\EventInterface;
 use Ttree\Cqrs\Event\EventTransport;
 use Ttree\Cqrs\Event\EventType;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
 use Ttree\EventStore\Exception\AggregateNotFoundException;
@@ -23,6 +24,7 @@ use Ttree\EventStore\Exception\StorageConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Property\PropertyMapper;
 use TYPO3\Flow\Reflection\ObjectAccess;
 
@@ -118,7 +120,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'data' => ':data',
                 'data_hash' => ':data_hash',
                 'created_at' => ':created_at',
-                'created_at_microseconds' => ':created_at_microseconds',
                 'aggregate_identifier' => ':aggregate_identifier',
                 'aggregate_name' => ':aggregate_name',
                 'aggregate_name_hash' => ':aggregate_name_hash'
@@ -129,7 +130,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'data' => $streamData,
                 'data_hash' => md5($streamData),
                 'created_at' => $now,
-                'created_at_microseconds' => $now->format('u'),
                 'aggregate_identifier' => $aggregateIdentifier,
                 'aggregate_name' => $aggregateName,
                 'aggregate_name_hash' => md5($aggregateName)
@@ -138,8 +138,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'version' => \PDO::PARAM_INT,
                 'data' => \PDO::PARAM_STR,
                 'data_hash' => \PDO::PARAM_STR,
-                'created_at' => Type::DATETIME,
-                'created_at_microseconds' => \PDO::PARAM_INT,
+                'created_at' => DateTimeType::DATETIME_MICRO,
                 'aggregate_identifier' => \PDO::PARAM_STR,
                 'aggregate_name' => \PDO::PARAM_STR,
                 'aggregate_name_hash' => \PDO::PARAM_STR
@@ -171,11 +170,10 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $conn = $this->connectionFactory->get();
         $queryBuilder = $conn->createQueryBuilder();
         $streamName = $this->connectionFactory->getStreamName();
-        $version = 1;
         /** @var EventTransport $eventTransport */
-        foreach ($streamData->getData() as $eventTransport) {
+        foreach ($streamData->getData() as $version => $eventTransport) {
             $event = $eventTransport->getEvent();
-            $properties = $this->serializeEventProperties($eventTransport->getEvent());
+            $properties = $this->propertyMapper->convert($eventTransport->getEvent(), 'array');
             $timestamp = $eventTransport->getTimestamp();
             $name = EventType::get($event);
             $query = $queryBuilder
@@ -188,7 +186,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'type_hash' => ':type_hash',
                     'properties' => ':properties',
                     'created_at' => ':created_at',
-                    'created_at_microseconds' => ':created_at_microseconds',
                     'aggregate_identifier' => ':aggregate_identifier',
                     'aggregate_name' => ':aggregate_name',
                     'aggregate_name_hash' => ':aggregate_name_hash'
@@ -196,12 +193,11 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 ->setParameters([
                     'identifier' => $commitIdentifier,
                     'commit_version' => $commitVersion,
-                    'version' => $version,
+                    'version' => $version + 1,
                     'type' => $name,
                     'type_hash' => md5($name),
                     'properties' => $properties,
                     'created_at' => $timestamp,
-                    'created_at_microseconds' => $timestamp->format('u'),
                     'aggregate_identifier' => $aggregateIdentifier,
                     'aggregate_name' => $aggregateName,
                     'aggregate_name_hash' => md5($aggregateName)
@@ -211,15 +207,13 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
-                    'properties' => \PDO::PARAM_STR,
-                    'created_at' => Type::DATETIME,
-                    'created_at_microseconds' => \PDO::PARAM_INT,
+                    'properties' => JsonArrayType::JSON_ARRAY,
+                    'created_at' => DateTimeType::DATETIME_MICRO,
                     'aggregate_identifier' => \PDO::PARAM_STR,
                     'aggregate_name' => \PDO::PARAM_STR,
                     'aggregate_name_hash' => \PDO::PARAM_STR
                 ]);
             $query->execute();
-            $version++;
         }
     }
 
@@ -280,29 +274,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         }
 
         return new EventStream($identifier, $aggregateName, $data, $untilVersion);
-    }
-
-    /**
-     * @param EventInterface $event
-     * @return string
-     * @throws EventSerializerException
-     */
-    protected function serializeEventProperties(EventInterface $event): string
-    {
-        $data = ObjectAccess::getGettableProperties($event);
-        foreach ($data as $propertyName => $propertyValue) {
-            switch (true) {
-                case $propertyValue instanceof \DateTime:
-                        $propertyValue = $propertyValue->format(Timestamp::OUTPUT_FORMAT);
-                    break;
-                default:
-                    if (!is_scalar($propertyValue)) {
-                        throw new EventSerializerException('Event can only contains scalar type values or DataTime', 1472457099);
-                    }
-            }
-            $data[$propertyName] = $propertyValue;
-        }
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION);
     }
 
     /**
