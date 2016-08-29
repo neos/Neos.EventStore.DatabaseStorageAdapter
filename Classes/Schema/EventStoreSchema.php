@@ -34,7 +34,7 @@ final class EventStoreSchema
         $table->addColumn('version', Type::BIGINT, ['unsigned' => true]);
 
         // Events of the commit
-        $table->addColumn('data', Type::TEXT);
+        $table->addColumn('data', JsonArrayType::CQRS_JSON_ARRAY);
         $table->addColumn('data_hash', Type::STRING, ['length' => 32]);
 
         // Timestamp of the commit
