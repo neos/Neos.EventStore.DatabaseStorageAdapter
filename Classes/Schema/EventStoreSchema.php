@@ -80,7 +80,7 @@ final class EventStoreSchema
         $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
-        $table->addColumn('data', Type::TEXT);
+        $table->addColumn('properties', Type::TEXT);
 
         // Timestamp of the event
         $table->addColumn('created_at', Type::DATETIME);

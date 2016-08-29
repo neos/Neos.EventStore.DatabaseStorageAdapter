@@ -11,17 +11,20 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
+use Ttree\Cqrs\Event\EventInterface;
 use Ttree\Cqrs\Event\EventTransport;
 use Ttree\Cqrs\Event\EventType;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
 use Ttree\EventStore\Exception\AggregateNotFoundException;
+use Ttree\EventStore\Exception\EventSerializerException;
 use Ttree\EventStore\Exception\StorageConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
+use TYPO3\Flow\Reflection\ObjectAccess;
 
 /**
  * Database event storage, for testing purpose
@@ -172,7 +175,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         /** @var EventTransport $eventTransport */
         foreach ($streamData->getData() as $eventTransport) {
             $event = $eventTransport->getEvent();
-            $data = $this->propertyMapper->convert($eventTransport, 'string');
+            $properties = $this->serializeEventProperties($eventTransport->getEvent());
             $timestamp = $eventTransport->getTimestamp();
             $name = EventType::get($event);
             $query = $queryBuilder
@@ -183,7 +186,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => ':version',
                     'type' => ':type',
                     'type_hash' => ':type_hash',
-                    'data' => ':data',
+                    'properties' => ':properties',
                     'created_at' => ':created_at',
                     'created_at_microseconds' => ':created_at_microseconds',
                     'aggregate_identifier' => ':aggregate_identifier',
@@ -196,7 +199,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => $version,
                     'type' => $name,
                     'type_hash' => md5($name),
-                    'data' => $data,
+                    'properties' => $properties,
                     'created_at' => $timestamp,
                     'created_at_microseconds' => $timestamp->format('u'),
                     'aggregate_identifier' => $aggregateIdentifier,
@@ -208,7 +211,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
-                    'data' => \PDO::PARAM_STR,
+                    'properties' => \PDO::PARAM_STR,
                     'created_at' => Type::DATETIME,
                     'created_at_microseconds' => \PDO::PARAM_INT,
                     'aggregate_identifier' => \PDO::PARAM_STR,
@@ -277,6 +280,29 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         }
 
         return new EventStream($identifier, $aggregateName, $data, $untilVersion);
+    }
+
+    /**
+     * @param EventInterface $event
+     * @return string
+     * @throws EventSerializerException
+     */
+    protected function serializeEventProperties(EventInterface $event): string
+    {
+        $data = ObjectAccess::getGettableProperties($event);
+        foreach ($data as $propertyName => $propertyValue) {
+            switch (true) {
+                case $propertyValue instanceof \DateTime:
+                        $propertyValue = $propertyValue->format(Timestamp::OUTPUT_FORMAT);
+                    break;
+                default:
+                    if (!is_scalar($propertyValue)) {
+                        throw new EventSerializerException('Event can only contains scalar type values or DataTime', 1472457099);
+                    }
+            }
+            $data[$propertyName] = $propertyValue;
+        }
+        return json_encode($data, JSON_PRETTY_PRINT);
     }
 
     /**
