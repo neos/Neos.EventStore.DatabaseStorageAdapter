@@ -14,9 +14,9 @@ Ttree:
           password: 'eventstore'
 
         mappingTypes:
-          'flow_json_array':
+          'cqrs_json_array':
             dbType: 'json_array'
-            className: 'TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType'
+            className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType'
           'datetime_micro':
             dbType: 'datetime'
             className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType'

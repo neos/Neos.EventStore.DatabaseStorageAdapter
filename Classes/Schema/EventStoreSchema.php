@@ -10,7 +10,7 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Type;
 use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
-use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
+use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType;
 
 /**
  * Use this helper in a doctrine migrations script to set up the event store schema
@@ -81,7 +81,7 @@ final class EventStoreSchema
         $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
-        $table->addColumn('properties', JsonArrayType::FLOW_JSON_ARRAY);
+        $table->addColumn('properties', JsonArrayType::CQRS_JSON_ARRAY);
 
         // Timestamp of the event
         $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);

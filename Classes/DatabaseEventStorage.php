@@ -9,24 +9,20 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Type;
 use Ttree\Cqrs\Domain\Timestamp;
-use Ttree\Cqrs\Event\EventInterface;
 use Ttree\Cqrs\Event\EventTransport;
 use Ttree\Cqrs\Event\EventType;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
 use Ttree\EventStore\Exception\AggregateNotFoundException;
-use Ttree\EventStore\Exception\EventSerializerException;
 use Ttree\EventStore\Exception\StorageConcurrencyException;
 use Ttree\EventStore\Storage\EventStorageInterface;
 use Ttree\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
-use TYPO3\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use TYPO3\Flow\Property\PropertyMapper;
-use TYPO3\Flow\Reflection\ObjectAccess;
 
 /**
  * Database event storage, for testing purpose
@@ -160,7 +156,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
     /**
      * @param string $commitIdentifier
-     * @param string $commitVersion
+     * @param integer $commitVersion
      * @param string $aggregateIdentifier
      * @param string $aggregateName
      * @param EventStreamData $streamData
@@ -207,7 +203,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
-                    'properties' => JsonArrayType::JSON_ARRAY,
+                    'properties' => JsonArrayType::CQRS_JSON_ARRAY,
                     'created_at' => DateTimeType::DATETIME_MICRO,
                     'aggregate_identifier' => \PDO::PARAM_STR,
                     'aggregate_name' => \PDO::PARAM_STR,
