@@ -302,7 +302,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
             }
             $data[$propertyName] = $propertyValue;
         }
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
+        return json_encode($data, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION);
     }
 
     /**
