@@ -50,9 +50,7 @@ final class EventStoreSchema
         $table->setPrimaryKey(['identifier']);
 
         // Concurrency check on database level
-        $table->addUniqueIndex(['version'], $name . '_v_uix');
-
-        $table->addIndex(['aggregate_identifier'], $name . '_ai');
+        $table->addUniqueIndex(['aggregate_identifier', 'version'], $name . '_v_uix');
 
         $table->addIndex(['data_hash'], $name . '_dh');
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
