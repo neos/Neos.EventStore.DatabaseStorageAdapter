@@ -14,9 +14,6 @@ Ttree:
           password: 'eventstore'
 
         mappingTypes:
-          'cqrs_json_array':
-            dbType: 'json_array'
-            className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType'
           'datetime_micro':
             dbType: 'datetime'
             className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType'

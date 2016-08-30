@@ -10,7 +10,6 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Type;
 use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
-use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType;
 
 /**
  * Use this helper in a doctrine migrations script to set up the event store schema
@@ -34,7 +33,7 @@ final class EventStoreSchema
         $table->addColumn('version', Type::BIGINT, ['unsigned' => true]);
 
         // Events of the commit
-        $table->addColumn('data', JsonArrayType::CQRS_JSON_ARRAY);
+        $table->addColumn('data', Type::TEXT);
         $table->addColumn('data_hash', Type::STRING, ['length' => 32]);
 
         // Timestamp of the commit
@@ -55,6 +54,7 @@ final class EventStoreSchema
         $table->addIndex(['data_hash'], $name . '_dh');
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
     }
+
     /**
      * Use this method when you work with a single stream strategy
      *
@@ -79,7 +79,7 @@ final class EventStoreSchema
         $table->addColumn('type_hash', Type::STRING, ['length' => 32]);
 
         // Event payload
-        $table->addColumn('properties', JsonArrayType::CQRS_JSON_ARRAY);
+        $table->addColumn('properties', Type::TEXT);
 
         // Timestamp of the event
         $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);
