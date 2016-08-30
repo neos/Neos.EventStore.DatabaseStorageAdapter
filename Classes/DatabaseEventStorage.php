@@ -2,9 +2,13 @@
 namespace Ttree\EventStore\DatabaseStorageAdapter;
 
 /*
- * This file is part of the Ttree.Cqrs package.
+ * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.
  *
- * (c) Hand crafted with love in each details by medialib.tv
+ * (c) Contributors of the Neos Project - www.neos.io
+ *
+ * This package is Open Source Software. For the full copyright and license
+ * information, please view the LICENSE file which was distributed with this
+ * source code.
  */
 
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -14,7 +18,6 @@ use Ttree\Cqrs\Event\EventTransport;
 use Ttree\Cqrs\Event\EventType;
 use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
-use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\JsonArrayType;
 use Ttree\EventStore\EventStream;
 use Ttree\EventStore\EventStreamData;
 use Ttree\EventStore\Exception\AggregateNotFoundException;

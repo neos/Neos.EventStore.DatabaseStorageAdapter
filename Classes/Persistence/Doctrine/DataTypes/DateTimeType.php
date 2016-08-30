@@ -2,15 +2,18 @@
 namespace Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes;
 
 /*
- * This file is part of the Ttree.Cqrs package.
+ * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.
  *
- * (c) Hand crafted with love in each details by medialib.tv
+ * (c) Contributors of the Neos Project - www.neos.io
+ *
+ * This package is Open Source Software. For the full copyright and license
+ * information, please view the LICENSE file which was distributed with this
+ * source code.
  */
 
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\ConversionException;
 use Doctrine\DBAL\Types\Type;
-use TYPO3\Flow\Annotations as Flow;
 
 /**
  * DateTimeType
