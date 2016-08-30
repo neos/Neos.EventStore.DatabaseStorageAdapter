@@ -170,6 +170,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         foreach ($streamData->getData() as $version => $eventTransport) {
             $event = $eventTransport->getEvent();
             $properties = $this->propertyMapper->convert($eventTransport->getEvent(), 'array');
+            $properties = json_encode($properties, JSON_PRETTY_PRINT);
             $timestamp = $eventTransport->getTimestamp();
             $name = EventType::get($event);
             $query = $queryBuilder
@@ -203,7 +204,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'version' => \PDO::PARAM_INT,
                     'type' => \PDO::PARAM_STR,
                     'type_hash' => \PDO::PARAM_STR,
-                    'properties' => JsonArrayType::CQRS_JSON_ARRAY,
+                    'properties' => \PDO::PARAM_STR,
                     'created_at' => DateTimeType::DATETIME_MICRO,
                     'aggregate_identifier' => \PDO::PARAM_STR,
                     'aggregate_name' => \PDO::PARAM_STR,
