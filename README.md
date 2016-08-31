@@ -1,10 +1,11 @@
-# EventStore InMemory Storage Adapter
+# EventStore Database (DBAL) Adapter
 
 _This package is currently under development and not fully working, please don't use it in production._
 
-This package is inspired by [Prooph EventStore Doctrine Adapter](https://github.com/prooph/event-store-doctrine-adapter).
-
-This package provide an EventStore implementation for ```Neos.EventStore``` based on Doctrine DBAL.
+Check for more documentation:
+ 
+- [Neos.Cqrs](https://github.com/neos/Neos.Cqrs)
+- [Neos.EventStore](https://github.com/neos/Neos.EventStore)
 
 ## Installation
 
@@ -15,7 +16,11 @@ main Flow persistence connection for tunning reasons (different database between
 can help tune performance issue and administrative task like backup, ...).
 
     flow eventstore:createschema
+    
+## Drop the tables
 
+    flow eventstore:dropschema
+    
 License
 -------
 
