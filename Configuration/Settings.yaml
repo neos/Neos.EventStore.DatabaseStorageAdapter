@@ -1,4 +1,4 @@
-Ttree:
+Neos:
   EventStore:
     DatabaseStorageAdapter:
       persistence:
@@ -16,4 +16,4 @@ Ttree:
         mappingTypes:
           'datetime_micro':
             dbType: 'datetime'
-            className: 'Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType'
+            className: 'Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType'

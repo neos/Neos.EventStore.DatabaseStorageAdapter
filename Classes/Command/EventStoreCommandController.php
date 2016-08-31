@@ -1,5 +1,5 @@
 <?php
-namespace Ttree\EventStore\DatabaseStorageAdapter\Command;
+namespace Neos\EventStore\DatabaseStorageAdapter\Command;
 
 /*
  * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.
@@ -11,8 +11,8 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Command;
  * source code.
  */
 
-use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
-use Ttree\EventStore\DatabaseStorageAdapter\Schema\EventStoreSchema;
+use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Neos\EventStore\DatabaseStorageAdapter\Schema\EventStoreSchema;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Cli\CommandController;
 

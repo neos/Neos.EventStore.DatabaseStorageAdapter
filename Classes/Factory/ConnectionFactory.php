@@ -1,5 +1,5 @@
 <?php
-namespace Ttree\EventStore\DatabaseStorageAdapter\Factory;
+namespace Neos\EventStore\DatabaseStorageAdapter\Factory;
 
 /*
  * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.

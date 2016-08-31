@@ -1,5 +1,5 @@
 <?php
-namespace Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes;
+namespace Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes;
 
 /*
  * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.

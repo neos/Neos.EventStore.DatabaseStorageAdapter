@@ -1,18 +1,18 @@
 {
   "description": "",
   "type": "neos-package",
-  "name": "ttree/eventstore-databasestorageadapter",
+  "name": "neos/eventstore-databasestorageadapter",
   "require": {
-    "ttree/eventstore": "*"
+    "neos/eventstore": "*"
   },
   "autoload": {
     "psr-4": {
-      "Ttree\\EventStore\\DatabaseStorageAdapter\\": "Classes/"
+      "Neos\\EventStore\\DatabaseStorageAdapter\\": "Classes/"
     }
   },
   "extra": {
     "neos": {
-      "package-key": "Ttree.EventStore.DatabaseStorageAdapter"
+      "package-key": "Neos.EventStore.DatabaseStorageAdapter"
     }
   }
 }

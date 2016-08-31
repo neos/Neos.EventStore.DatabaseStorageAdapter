@@ -1,5 +1,5 @@
 <?php
-namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
+namespace Neos\EventStore\DatabaseStorageAdapter\Schema;
 
 /*
  * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.
@@ -13,7 +13,7 @@ namespace Ttree\EventStore\DatabaseStorageAdapter\Schema;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\Type;
-use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 
 /**
  * Use this helper in a doctrine migrations script to set up the event store schema

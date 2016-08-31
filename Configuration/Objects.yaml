@@ -1,2 +1,2 @@
-Ttree\EventStore\Storage\EventStorageInterface:
-  className: Ttree\EventStore\DatabaseStorageAdapter\DatabaseEventStorage
+Neos\EventStore\Storage\EventStorageInterface:
+  className: Neos\EventStore\DatabaseStorageAdapter\DatabaseEventStorage

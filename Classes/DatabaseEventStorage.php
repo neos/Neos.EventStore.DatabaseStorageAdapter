@@ -1,5 +1,5 @@
 <?php
-namespace Ttree\EventStore\DatabaseStorageAdapter;
+namespace Neos\EventStore\DatabaseStorageAdapter;
 
 /*
  * This file is part of the Neos.EventStore.DatabaseStorageAdapter package.
@@ -13,17 +13,17 @@ namespace Ttree\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Query\QueryBuilder;
-use Ttree\Cqrs\Domain\Timestamp;
-use Ttree\Cqrs\Event\EventTransport;
-use Ttree\Cqrs\Event\EventType;
-use Ttree\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
-use Ttree\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
-use Ttree\EventStore\EventStream;
-use Ttree\EventStore\EventStreamData;
-use Ttree\EventStore\Exception\AggregateNotFoundException;
-use Ttree\EventStore\Exception\StorageConcurrencyException;
-use Ttree\EventStore\Storage\EventStorageInterface;
-use Ttree\EventStore\Storage\PreviousEventsInterface;
+use Neos\Cqrs\Domain\Timestamp;
+use Neos\Cqrs\Event\EventTransport;
+use Neos\Cqrs\Event\EventType;
+use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
+use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use Neos\EventStore\EventStream;
+use Neos\EventStore\EventStreamData;
+use Neos\EventStore\Exception\AggregateNotFoundException;
+use Neos\EventStore\Exception\StorageConcurrencyException;
+use Neos\EventStore\Storage\EventStorageInterface;
+use Neos\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
 
