@@ -44,7 +44,8 @@ final class EventStoreSchema
         $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);
 
         // UUID4 of linked aggregate
-        $table->addColumn('aggregate_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
+        $table->addColumn('aggregate_identifier', Type::TEXT);
+        $table->addColumn('aggregate_identifier_hash', Type::STRING, ['length' => 32]);
 
         // Class of the linked aggregate
         $table->addColumn('aggregate_name', Type::STRING, ['length' => 1000]);
@@ -53,7 +54,7 @@ final class EventStoreSchema
         $table->setPrimaryKey(['identifier']);
 
         // Concurrency check on database level
-        $table->addUniqueIndex(['aggregate_identifier', 'version'], $name . '_v_uix');
+        $table->addUniqueIndex(['aggregate_identifier_hash', 'version'], $name . '_v_uix');
 
         $table->addIndex(['data_hash'], $name . '_dh');
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
@@ -89,7 +90,8 @@ final class EventStoreSchema
         $table->addColumn('created_at', DateTimeType::DATETIME_MICRO);
 
         // UUID4 of linked aggregate
-        $table->addColumn('aggregate_identifier', Type::STRING, ['fixed' => true, 'length' => 36]);
+        $table->addColumn('aggregate_identifier', Type::TEXT);
+        $table->addColumn('aggregate_identifier_hash', Type::STRING, ['length' => 32]);
 
         // Class of the linked aggregate
         $table->addColumn('aggregate_name', Type::STRING, ['length' => 1000]);
@@ -98,7 +100,7 @@ final class EventStoreSchema
         // Concurrency check on database level
         $table->setPrimaryKey(['identifier', 'version'], $name . '_v_uix');
 
-        $table->addIndex(['aggregate_identifier', 'commit_version'], $name . '_ai_cv');
+        $table->addIndex(['aggregate_identifier_hash', 'commit_version'], $name . '_ai_cv');
 
         $table->addIndex(['aggregate_name_hash'], $name . '_anh');
     }

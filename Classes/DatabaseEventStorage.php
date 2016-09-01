@@ -71,9 +71,9 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $query = $queryBuilder
             ->select('data, aggregate_name')
             ->from($commitName)
-            ->andWhere('aggregate_identifier = :aggregate_identifier')
+            ->andWhere('aggregate_identifier_hash = :aggregate_identifier_hash')
             ->orderBy('version', 'ASC')
-            ->setParameter('aggregate_identifier', $identifier);
+            ->setParameter('aggregate_identifier_hash', md5($identifier));
 
         list($aggregateName, $data) = $this->eventStreamFromCommitQuery($query);
 
@@ -120,6 +120,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'data_hash' => ':data_hash',
                 'created_at' => ':created_at',
                 'aggregate_identifier' => ':aggregate_identifier',
+                'aggregate_identifier_hash' => ':aggregate_identifier_hash',
                 'aggregate_name' => ':aggregate_name',
                 'aggregate_name_hash' => ':aggregate_name_hash'
             ])
@@ -130,6 +131,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'data_hash' => md5($streamData),
                 'created_at' => $now,
                 'aggregate_identifier' => $aggregateIdentifier,
+                'aggregate_identifier_hash' => md5($aggregateIdentifier),
                 'aggregate_name' => $aggregateName,
                 'aggregate_name_hash' => md5($aggregateName)
             ], [
@@ -139,6 +141,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'data_hash' => \PDO::PARAM_STR,
                 'created_at' => DateTimeType::DATETIME_MICRO,
                 'aggregate_identifier' => \PDO::PARAM_STR,
+                'aggregate_identifier_hash' => \PDO::PARAM_STR,
                 'aggregate_name' => \PDO::PARAM_STR,
                 'aggregate_name_hash' => \PDO::PARAM_STR
             ]);
@@ -187,6 +190,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'properties' => ':properties',
                     'created_at' => ':created_at',
                     'aggregate_identifier' => ':aggregate_identifier',
+                    'aggregate_identifier_hash' => ':aggregate_identifier_hash',
                     'aggregate_name' => ':aggregate_name',
                     'aggregate_name_hash' => ':aggregate_name_hash'
                 ])
@@ -199,6 +203,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'properties' => $properties,
                     'created_at' => $timestamp,
                     'aggregate_identifier' => $aggregateIdentifier,
+                    'aggregate_identifier_hash' => md5($aggregateIdentifier),
                     'aggregate_name' => $aggregateName,
                     'aggregate_name_hash' => md5($aggregateName)
                 ], [
@@ -210,6 +215,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                     'properties' => \PDO::PARAM_STR,
                     'created_at' => DateTimeType::DATETIME_MICRO,
                     'aggregate_identifier' => \PDO::PARAM_STR,
+                    'aggregate_identifier_hash' => \PDO::PARAM_STR,
                     'aggregate_name' => \PDO::PARAM_STR,
                     'aggregate_name_hash' => \PDO::PARAM_STR
                 ]);
