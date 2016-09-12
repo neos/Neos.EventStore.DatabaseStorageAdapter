@@ -11,13 +11,14 @@ namespace Neos\EventStore\DatabaseStorageAdapter\Command;
  * source code.
  */
 
+use Doctrine\DBAL\Exception\ConnectionException;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Schema\EventStoreSchema;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Cli\CommandController;
 
 /**
- * ConnectionFactory
+ * CLI Command Controller for storage related commands of the Neos Event Store
  *
  * @Flow\Scope("singleton")
  */
@@ -30,37 +31,72 @@ class EventStoreCommandController extends CommandController
     protected $connectionFactory;
 
     /**
-     * Create eventstore database tables
+     * @var array
+     * @Flow\InjectConfiguration(path="persistence")
+     */
+    protected $configuration;
+
+    /**
+     * Create Event Store database tables
+     *
+     * This command creates the necessary database tables for the Event Store. It uses the Doctrine connection
+     * parameters which were defined for Flow.
+     *
+     * @return void
      */
     public function createSchemaCommand()
     {
-        $this->outputLine();
-        $conn = $this->connectionFactory->get();
-        $schema = $conn->getSchemaManager()->createSchema();
+        $this->outputLine('Creating Event Store database tables in database "%s" on host %s connecting with user "%s" ...', [ $this->configuration['backendOptions']['dbname'], $this->configuration['backendOptions']['host'], $this->configuration['backendOptions']['user']]);
+        try {
+            $connection = $this->connectionFactory->get();
+        } catch (ConnectionException $exception) {
+            $this->outputLine('<error>Connection failed</error>');
+            $this->outputLine('%s', [ $exception->getMessage() ]);
+            $this->quit(1);
+        }
+
+        $schema = $connection->getSchemaManager()->createSchema();
         $toSchema = clone $schema;
 
         EventStoreSchema::createCommit($toSchema, $this->connectionFactory->getCommitName());
         EventStoreSchema::createStream($toSchema, $this->connectionFactory->getStreamName());
 
-        $conn->beginTransaction();
-        $statements = $schema->getMigrateToSql($toSchema, $conn->getDatabasePlatform());
+        $connection->beginTransaction();
+        $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
         foreach ($statements as $statement) {
             $this->outputLine('<info>++</info> %s', [$statement]);
-            $conn->exec($statement);
+            $connection->exec($statement);
         }
-        $conn->commit();
+        $connection->commit();
 
         $this->outputLine();
     }
 
     /**
-     * Create eventstore database tables
+     * Drop Event Store database tables
+     *
+     * This command <b>deletes all</b> Event Store related database tables! It uses the Doctrine connection
+     * parameters which were defined for Flow.
+     *
+     * @return void
      */
     public function dropSchemaCommand()
     {
-        $this->outputLine();
-        $conn = $this->connectionFactory->get();
-        $schema = $conn->getSchemaManager()->createSchema();
+        $this->outputLine('<error>Warning</error>');
+        $this->outputLine('You are about to drop all Event Store related tables in database "%s" on host %s.', [ $this->configuration['backendOptions']['dbname'], $this->configuration['backendOptions']['host']]);
+        if (!$this->output->askConfirmation('Are you sure? ', false)) {
+            $this->outputLine('Aborted.');
+            $this->quit(0);
+        }
+
+        try {
+            $connection = $this->connectionFactory->get();
+        } catch (ConnectionException $exception) {
+            $this->outputLine('<error>Connection failed</error>');
+            $this->outputLine('%s', [ $exception->getMessage() ]);
+            $this->quit(1);
+        }
+        $schema = $connection->getSchemaManager()->createSchema();
         $toSchema = clone $schema;
 
         if ($schema->hasTable($this->connectionFactory->getCommitName())) {
@@ -71,13 +107,13 @@ class EventStoreCommandController extends CommandController
             EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamName());
         }
 
-        $conn->beginTransaction();
-        $statements = $schema->getMigrateToSql($toSchema, $conn->getDatabasePlatform());
+        $connection->beginTransaction();
+        $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
         foreach ($statements as $statement) {
             $this->outputLine('<info>++</info> %s', [$statement]);
-            $conn->exec($statement);
+            $connection->exec($statement);
         }
-        $conn->commit();
+        $connection->commit();
 
         $this->outputLine();
     }
