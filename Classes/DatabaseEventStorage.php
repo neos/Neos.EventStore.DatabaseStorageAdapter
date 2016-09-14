@@ -21,7 +21,6 @@ use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTi
 use Neos\EventStore\EventStreamData;
 use Neos\EventStore\Exception\StorageConcurrencyException;
 use Neos\EventStore\Storage\EventStorageInterface;
-use Neos\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
 
