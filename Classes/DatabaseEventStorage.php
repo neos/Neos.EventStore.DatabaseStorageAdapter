@@ -106,7 +106,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
 
         $streamData = array_map(function (EventTransport $eventTransport) {
             return $this->propertyMapper->convert($eventTransport, 'array');
-        }, $stream->getData());;
+        }, $stream->getData());
 
         $now = Timestamp::create();
 
