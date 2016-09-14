@@ -18,9 +18,7 @@ use Neos\Cqrs\Event\EventTransport;
 use Neos\Cqrs\Event\EventType;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
-use Neos\EventStore\EventStream;
 use Neos\EventStore\EventStreamData;
-use Neos\EventStore\Exception\AggregateNotFoundException;
 use Neos\EventStore\Exception\StorageConcurrencyException;
 use Neos\EventStore\Storage\EventStorageInterface;
 use Neos\EventStore\Storage\PreviousEventsInterface;
@@ -30,7 +28,7 @@ use TYPO3\Flow\Property\PropertyMapper;
 /**
  * Database event storage, for testing purpose
  */
-class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInterface
+class DatabaseEventStorage implements EventStorageInterface
 {
     /**
      * @var ConnectionFactory
@@ -252,34 +250,6 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $version = (integer)$query->execute()->fetchColumn();
         $this->runtimeVersionCache[$identifier] = $version;
         return $version ?: 0;
-    }
-
-    /**
-     * @param string $identifier
-     * @param integer $untilVersion
-     * @return EventStream
-     * @throws AggregateNotFoundException
-     */
-    public function getPreviousEvents(string $identifier, int $untilVersion): EventStream
-    {
-        $conn = $this->connectionFactory->get();
-        $commitName = $this->connectionFactory->getCommitName();
-        $queryBuilder = $conn->createQueryBuilder();
-        $query = $queryBuilder
-            ->select('data, aggregate_name')
-            ->from($commitName)
-            ->andWhere('aggregate_identifier = :aggregate_identifier AND version >= :untilVersion')
-            ->orderBy('version', 'DESC')
-            ->setParameter('aggregate_identifier', $identifier)
-            ->setParameter('untilVersion', $untilVersion);
-
-        list($aggregateName, $data) = $this->eventStreamFromCommitQuery($query);
-
-        if ($aggregateName === null) {
-            throw new AggregateNotFoundException(sprintf('Aggregate with identifier %s, version=%d, not found', $identifier, $untilVersion), 1472306367);
-        }
-
-        return new EventStream($identifier, $aggregateName, $data, $untilVersion);
     }
 
     /**
