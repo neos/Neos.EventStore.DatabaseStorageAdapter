@@ -26,6 +26,7 @@ use Neos\EventStore\Storage\EventStorageInterface;
 use Neos\EventStore\Storage\PreviousEventsInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMapper;
+use TYPO3\Flow\Utility\Algorithms;
 
 /**
  * Database event storage, for testing purpose
@@ -88,14 +89,13 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
     }
 
     /**
-     * @param string $streamIdentifier
      * @param string $aggregateIdentifier
      * @param string $aggregateName
      * @param array $data
      * @param integer $version
      * @throws StorageConcurrencyException
      */
-    public function commit(string $streamIdentifier, string $aggregateIdentifier, string $aggregateName, array $data, int $version)
+    public function commit(string $aggregateIdentifier, string $aggregateName, array $data, int $version)
     {
         $stream = new EventStreamData($aggregateIdentifier, $aggregateName, $data, $version);
         $conn = $this->connectionFactory->get();
@@ -111,6 +111,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
         $now = Timestamp::create();
 
         $streamData = json_encode($streamData, JSON_PRETTY_PRINT);
+        $commitIdentifier = Algorithms::generateUUID();
         $query = $queryBuilder
             ->insert($commitName)
             ->values([
@@ -125,7 +126,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
                 'aggregate_name_hash' => ':aggregate_name_hash'
             ])
             ->setParameters([
-                'identifier' => $streamIdentifier,
+                'identifier' => $commitIdentifier,
                 'version' => $version,
                 'data' => $streamData,
                 'data_hash' => md5($streamData),
@@ -157,7 +158,7 @@ class DatabaseEventStorage implements EventStorageInterface, PreviousEventsInter
             );
         }
 
-        $this->commitStream($streamIdentifier, $version, $aggregateIdentifier, $aggregateName, $stream);
+        $this->commitStream($commitIdentifier, $version, $aggregateIdentifier, $aggregateName, $stream);
     }
 
     /**
