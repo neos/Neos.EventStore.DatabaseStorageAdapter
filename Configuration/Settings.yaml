@@ -3,7 +3,6 @@ Neos:
     DatabaseStorageAdapter:
       persistence:
         name:
-          commit: 'es_commit'
           stream: 'es_stream'
 
         backendOptions:
