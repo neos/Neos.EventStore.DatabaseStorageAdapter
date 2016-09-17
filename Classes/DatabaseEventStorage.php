@@ -13,9 +13,7 @@ namespace Neos\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\Cqrs\Domain\Timestamp;
-use Neos\Cqrs\Event\EventInterface;
 use Neos\Cqrs\Event\EventTransport;
-use Neos\Cqrs\Message\MessageMetadata;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Neos\EventStore\EventStreamData;
