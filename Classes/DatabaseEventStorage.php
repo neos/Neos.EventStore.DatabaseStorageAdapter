@@ -67,7 +67,7 @@ class DatabaseEventStorage implements EventStorageInterface
             ->addOrderBy('event_version', 'ASC')
             ->setParameter('stream_name_hash', md5($streamName));
 
-        $data = $this->eventStreamFromCommitQuery($query);
+        $data = $this->unserializeEvents($query);
 
         if ($data === []) {
             return null;
@@ -83,15 +83,19 @@ class DatabaseEventStorage implements EventStorageInterface
      * @param string $streamName
      * @param array $data
      * @param int $commitVersion
+     * @param \Closure $callback
      * @return int
      * @throws StorageConcurrencyException
      */
-    public function commit(string $streamName, array $data, int $commitVersion)
+    public function commit(string $streamName, array $data, int $commitVersion, \Closure $callback = null)
     {
         $stream = new EventStreamData($data, $commitVersion);
-        $conn = $this->connectionFactory->get();
+        $connection = $this->connectionFactory->get();
+        if ($callback !== null) {
+            $connection->beginTransaction();
+        }
 
-        $queryBuilder = $conn->createQueryBuilder();
+        $queryBuilder = $connection->createQueryBuilder();
 
         $now = Timestamp::create();
 
@@ -131,6 +135,16 @@ class DatabaseEventStorage implements EventStorageInterface
             $version++;
         }, $stream->getData());
 
+        if ($callback !== null) {
+            try {
+                $callback($commitVersion);
+                $connection->commit();
+            } catch (\Exception $exception) {
+                $connection->rollBack();
+                throw $exception;
+            }
+        }
+
         return $commitVersion;
     }
 
@@ -168,7 +182,7 @@ class DatabaseEventStorage implements EventStorageInterface
      * @param QueryBuilder $query
      * @return array
      */
-    protected function eventStreamFromCommitQuery(QueryBuilder $query): array
+    protected function unserializeEvents(QueryBuilder $query): array
     {
         $configuration = new PropertyMappingConfiguration();
         $configuration->allowAllProperties();
