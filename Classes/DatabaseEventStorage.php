@@ -20,9 +20,9 @@ use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Neos\EventStore\EventStreamData;
 use Neos\EventStore\Exception\StorageConcurrencyException;
+use Neos\EventStore\Serializer\JsonSerializer;
 use Neos\EventStore\Storage\EventStorageInterface;
 use TYPO3\Flow\Annotations as Flow;
-use TYPO3\Flow\Property\PropertyMapper;
 use TYPO3\Flow\Property\PropertyMappingConfiguration;
 use TYPO3\Flow\Property\TypeConverter\ObjectConverter;
 
@@ -38,10 +38,10 @@ class DatabaseEventStorage implements EventStorageInterface
     protected $connectionFactory;
 
     /**
-     * @var PropertyMapper
+     * @var JsonSerializer
      * @Flow\Inject
      */
-    protected $propertyMapper;
+    protected $serializer;
 
     /**
      * @var array
@@ -124,8 +124,8 @@ class DatabaseEventStorage implements EventStorageInterface
 
         $version = 1;
         array_map(function (EventTransport $eventTransport) use ($query, &$version) {
-            $event = $this->stringify($this->propertyMapper->convert($eventTransport->getEvent(), 'array'));
-            $metadata = $this->stringify($this->propertyMapper->convert($eventTransport->getMetaData(), 'array'));
+            $event = $this->serializer->serialize($eventTransport->getEvent());
+            $metadata = $this->serializer->serialize($eventTransport->getMetaData());
             $query->setParameter('event_version', $version);
             $query->setParameter('event', $event);
             $query->setParameter('metadata', $metadata);
@@ -183,19 +183,10 @@ class DatabaseEventStorage implements EventStorageInterface
         $data = [];
         foreach ($query->execute()->fetchAll() as $stream) {
             $data[] = new EventTransport(
-                $this->propertyMapper->convert(json_decode($stream['event'], true), EventInterface::class, $configuration),
-                $this->propertyMapper->convert(json_decode($stream['metadata'], true), MessageMetadata::class, $configuration)
+                $this->serializer->unserialize($stream['event']),
+                $this->serializer->unserialize($stream['metadata'])
             );
         }
         return $data;
-    }
-
-    /**
-     * @param array $data
-     * @return string
-     */
-    protected function stringify(array $data): string
-    {
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION);
     }
 }
