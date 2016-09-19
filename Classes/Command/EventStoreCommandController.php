@@ -49,27 +49,26 @@ class EventStoreCommandController extends CommandController
         $this->outputLine('Creating Event Store database tables in database "%s" on host %s connecting with user "%s" ...', [ $this->configuration['backendOptions']['dbname'], $this->configuration['backendOptions']['host'], $this->configuration['backendOptions']['user']]);
         try {
             $connection = $this->connectionFactory->get();
+
+            $schema = $connection->getSchemaManager()->createSchema();
+            $toSchema = clone $schema;
+
+            EventStoreSchema::createStream($toSchema, $this->connectionFactory->getStreamTableName());
+
+            $connection->beginTransaction();
+            $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
+            foreach ($statements as $statement) {
+                $this->outputLine('<info>++</info> %s', [$statement]);
+                $connection->exec($statement);
+            }
+            $connection->commit();
+
+            $this->outputLine();
         } catch (ConnectionException $exception) {
             $this->outputLine('<error>Connection failed</error>');
             $this->outputLine('%s', [ $exception->getMessage() ]);
             $this->quit(1);
         }
-
-        $schema = $connection->getSchemaManager()->createSchema();
-        $toSchema = clone $schema;
-
-        EventStoreSchema::createCommit($toSchema, $this->connectionFactory->getCommitName());
-        EventStoreSchema::createStream($toSchema, $this->connectionFactory->getStreamName());
-
-        $connection->beginTransaction();
-        $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
-        foreach ($statements as $statement) {
-            $this->outputLine('<info>++</info> %s', [$statement]);
-            $connection->exec($statement);
-        }
-        $connection->commit();
-
-        $this->outputLine();
     }
 
     /**
@@ -91,30 +90,27 @@ class EventStoreCommandController extends CommandController
 
         try {
             $connection = $this->connectionFactory->get();
+
+            $schema = $connection->getSchemaManager()->createSchema();
+            $toSchema = clone $schema;
+
+            if ($schema->hasTable($this->connectionFactory->getStreamTableName())) {
+                EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamTableName());
+            }
+
+            $connection->beginTransaction();
+            $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
+            foreach ($statements as $statement) {
+                $this->outputLine('<info>++</info> %s', [$statement]);
+                $connection->exec($statement);
+            }
+            $connection->commit();
+
+            $this->outputLine();
         } catch (ConnectionException $exception) {
             $this->outputLine('<error>Connection failed</error>');
             $this->outputLine('%s', [ $exception->getMessage() ]);
             $this->quit(1);
         }
-        $schema = $connection->getSchemaManager()->createSchema();
-        $toSchema = clone $schema;
-
-        if ($schema->hasTable($this->connectionFactory->getCommitName())) {
-            EventStoreSchema::drop($toSchema, $this->connectionFactory->getCommitName());
-        }
-
-        if ($schema->hasTable($this->connectionFactory->getStreamName())) {
-            EventStoreSchema::drop($toSchema, $this->connectionFactory->getStreamName());
-        }
-
-        $connection->beginTransaction();
-        $statements = $schema->getMigrateToSql($toSchema, $connection->getDatabasePlatform());
-        foreach ($statements as $statement) {
-            $this->outputLine('<info>++</info> %s', [$statement]);
-            $connection->exec($statement);
-        }
-        $connection->commit();
-
-        $this->outputLine();
     }
 }
