@@ -18,7 +18,7 @@ use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Neos\EventStore\EventStreamData;
 use Neos\EventStore\Exception\ConcurrencyException;
-use Neos\EventStore\Exception\StorageConcurrencyException;
+use Neos\EventStore\Filter\EventStreamFilter;
 use Neos\EventStore\Serializer\JsonSerializer;
 use Neos\EventStore\Storage\EventStorageInterface;
 use TYPO3\Flow\Annotations as Flow;
@@ -49,11 +49,12 @@ class DatabaseEventStorage implements EventStorageInterface
     protected $runtimeCache = [];
 
     /**
-     * @param string $streamName
+     * @param EventStreamFilter $filter
      * @return EventStreamData
      */
-    public function load(string $streamName)
+    public function load(EventStreamFilter $filter)
     {
+        $streamName = $filter->getStreamName();
         $version = $this->getCurrentVersion($streamName);
         $cacheKey = md5($streamName . '.' . $version);
         if (isset($this->runtimeCache[$cacheKey])) {
