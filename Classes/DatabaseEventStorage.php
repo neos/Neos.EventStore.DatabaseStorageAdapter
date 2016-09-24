@@ -62,15 +62,17 @@ class DatabaseEventStorage implements EventStorageInterface
     public function load(EventStreamFilter $filter)
     {
         $streamName = $filter->getStreamName();
+
         $version = $this->getCurrentVersion($streamName);
         $cacheKey = md5($streamName . '.' . $version);
         if (isset($this->runtimeCache[$cacheKey])) {
             return $this->runtimeCache[$cacheKey];
         }
+
         $conn = $this->connectionFactory->get();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('type, payload, metadata')
+            ->select('type, number, payload, metadata')
             ->from($this->connectionFactory->getStreamTableName())
             ->andWhere('stream_hash = :stream_hash')
             ->orderBy('number', 'ASC')
@@ -200,10 +202,15 @@ class DatabaseEventStorage implements EventStorageInterface
         $data = [];
         foreach ($query->execute()->fetchAll() as $stream) {
             $eventImplementation = $this->eventTypeService->getEventTypeImplementation($stream['type']);
-            $data[] = new EventTransport(
-                $this->serializer->unserialize($stream['payload'], $eventImplementation),
-                $this->serializer->unserialize($stream['metadata'], MessageMetadata::class)
-            );
+
+            /** @var EventInterface $event */
+            $event = $this->serializer->unserialize($stream['payload'], $eventImplementation);
+
+            /** @var MessageMetadata $metadata */
+            $metadata = $this->serializer->unserialize($stream['metadata'], MessageMetadata::class);
+            $metadata->add(Metadata::VERSION, $stream['number']);
+
+            $data[] = new EventTransport($event, $metadata);
         }
         return $data;
     }
