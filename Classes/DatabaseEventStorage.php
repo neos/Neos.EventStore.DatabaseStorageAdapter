@@ -15,6 +15,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\Cqrs\Domain\Timestamp;
 use Neos\Cqrs\Event\EventTransport;
 use Neos\Cqrs\Event\EventTypeService;
+use Neos\Cqrs\Message\MessageMetadata;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Neos\EventStore\EventStreamData;
@@ -134,22 +135,20 @@ class DatabaseEventStorage implements EventStorageInterface
             ]);
 
         $version = $this->getCurrentVersion($streamName);
+        if ($version + count($data) !== $expectedVersion) {
+            throw new ConcurrencyException(sprintf('Version %d is not egal to expected version %d', $version, $expectedVersion), 1474663323);
+        }
+
         array_map(function (EventTransport $eventTransport) use ($query, &$version) {
             $version++;
-            $event = $this->serializer->serialize($eventTransport->getEvent());
-            $metadata = $this->serializer->serialize($eventTransport->getMetaData());
             $type = $this->eventTypeService->getEventType($eventTransport->getEvent());
             $query->setParameter('number', $version);
             $query->setParameter('type', $type);
             $query->setParameter('type_hash', md5($type));
-            $query->setParameter('payload', $event);
-            $query->setParameter('metadata', $metadata);
+            $query->setParameter('payload', $this->serializer->serialize($eventTransport->getEvent()));
+            $query->setParameter('metadata', $this->serializer->serialize($eventTransport->getMetaData()));
             $query->execute();
         }, $stream->getData());
-
-        if ($version !== $expectedVersion) {
-            throw new ConcurrencyException(sprintf('Version %d is not egal to expected version %d', $version, $expectedVersion), 1474663323);
-        }
 
         if ($callback !== null) {
             try {
@@ -200,9 +199,10 @@ class DatabaseEventStorage implements EventStorageInterface
 
         $data = [];
         foreach ($query->execute()->fetchAll() as $stream) {
+            $eventImplementation = $this->eventTypeService->getEventTypeImplementation($stream['type']);
             $data[] = new EventTransport(
-                $this->serializer->unserialize($stream['payload']),
-                $this->serializer->unserialize($stream['metadata'])
+                $this->serializer->unserialize($stream['payload'], $eventImplementation),
+                $this->serializer->unserialize($stream['metadata'], MessageMetadata::class)
             );
         }
         return $data;
