@@ -13,11 +13,13 @@ namespace Neos\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\Cqrs\Domain\Timestamp;
+use Neos\Cqrs\Event\EventInterface;
 use Neos\Cqrs\Event\EventTransport;
 use Neos\Cqrs\Event\EventTypeService;
 use Neos\Cqrs\Message\MessageMetadata;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use Neos\EventStore\Event\Metadata;
 use Neos\EventStore\EventStreamData;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Filter\EventStreamFilter;
@@ -141,25 +143,32 @@ class DatabaseEventStorage implements EventStorageInterface
             throw new ConcurrencyException(sprintf('Version %d is not egal to expected version %d', $version, $expectedVersion), 1474663323);
         }
 
-        array_map(function (EventTransport $eventTransport) use ($query, &$version) {
+        /** @var EventTransport $eventTransport */
+        foreach ($stream->getData() as $eventTransport) {
             $version++;
+
             $type = $this->eventTypeService->getEventType($eventTransport->getEvent());
+
             $query->setParameter('number', $version);
             $query->setParameter('type', $type);
             $query->setParameter('type_hash', md5($type));
             $query->setParameter('payload', $this->serializer->serialize($eventTransport->getEvent()));
             $query->setParameter('metadata', $this->serializer->serialize($eventTransport->getMetaData()));
+
             $query->execute();
-        }, $stream->getData());
+
+            if ($callback !== null) {
+                try {
+                    $callback($eventTransport, $version);
+                } catch (\Exception $exception) {
+                    $connection->rollBack();
+                    throw $exception;
+                }
+            }
+        }
 
         if ($callback !== null) {
-            try {
-                $callback($expectedVersion);
-                $connection->commit();
-            } catch (\Exception $exception) {
-                $connection->rollBack();
-                throw $exception;
-            }
+            $connection->commit();
         }
 
         return $expectedVersion;
