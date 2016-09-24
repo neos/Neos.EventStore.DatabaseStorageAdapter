@@ -158,15 +158,6 @@ class DatabaseEventStorage implements EventStorageInterface
     }
 
     /**
-     * @param string $streamName
-     * @return boolean
-     */
-    public function contains(string $streamName): bool
-    {
-        return $this->getCurrentVersion($streamName) > 1 ? true : false;
-    }
-
-    /**
      * @param  string $streamName
      * @return integer Current Aggregate Root version
      */
