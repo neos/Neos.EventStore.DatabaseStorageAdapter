@@ -14,6 +14,7 @@ namespace Neos\EventStore\DatabaseStorageAdapter;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\Cqrs\Domain\Timestamp;
 use Neos\Cqrs\Event\EventTransport;
+use Neos\Cqrs\Event\EventTypeService;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
 use Neos\EventStore\EventStreamData;
@@ -24,7 +25,6 @@ use Neos\EventStore\Storage\EventStorageInterface;
 use TYPO3\Flow\Annotations as Flow;
 use TYPO3\Flow\Property\PropertyMappingConfiguration;
 use TYPO3\Flow\Property\TypeConverter\ObjectConverter;
-use TYPO3\Flow\Utility\TypeHandling;
 
 /**
  * Database event storage, for testing purpose
@@ -36,6 +36,12 @@ class DatabaseEventStorage implements EventStorageInterface
      * @Flow\Inject
      */
     protected $connectionFactory;
+
+    /**
+     * @var EventTypeService
+     * @Flow\Inject
+     */
+    protected $eventTypeService;
 
     /**
      * @var JsonSerializer
@@ -132,7 +138,7 @@ class DatabaseEventStorage implements EventStorageInterface
             $version++;
             $event = $this->serializer->serialize($eventTransport->getEvent());
             $metadata = $this->serializer->serialize($eventTransport->getMetaData());
-            $type = TypeHandling::getTypeForValue($eventTransport->getEvent());
+            $type = $this->eventTypeService->getEventType($eventTransport->getEvent());
             $query->setParameter('number', $version);
             $query->setParameter('type', $type);
             $query->setParameter('type_hash', md5($type));
