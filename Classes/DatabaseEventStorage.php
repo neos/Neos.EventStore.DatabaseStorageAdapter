@@ -13,11 +13,16 @@ namespace Neos\EventStore\DatabaseStorageAdapter;
 
 use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\Cqrs\Domain\Timestamp;
+use Neos\Cqrs\Event\EventInterface;
 use Neos\Cqrs\Event\EventTransport;
+use Neos\Cqrs\Event\EventTypeService;
+use Neos\Cqrs\Message\MessageMetadata;
 use Neos\EventStore\DatabaseStorageAdapter\Factory\ConnectionFactory;
 use Neos\EventStore\DatabaseStorageAdapter\Persistence\Doctrine\DataTypes\DateTimeType;
+use Neos\EventStore\Event\Metadata;
 use Neos\EventStore\EventStreamData;
-use Neos\EventStore\Exception\StorageConcurrencyException;
+use Neos\EventStore\Exception\ConcurrencyException;
+use Neos\EventStore\Filter\EventStreamFilter;
 use Neos\EventStore\Serializer\JsonSerializer;
 use Neos\EventStore\Storage\EventStorageInterface;
 use TYPO3\Flow\Annotations as Flow;
@@ -36,6 +41,12 @@ class DatabaseEventStorage implements EventStorageInterface
     protected $connectionFactory;
 
     /**
+     * @var EventTypeService
+     * @Flow\Inject
+     */
+    protected $eventTypeService;
+
+    /**
      * @var JsonSerializer
      * @Flow\Inject
      */
@@ -47,25 +58,27 @@ class DatabaseEventStorage implements EventStorageInterface
     protected $runtimeCache = [];
 
     /**
-     * @param string $streamName
+     * @param EventStreamFilter $filter
      * @return EventStreamData
      */
-    public function load(string $streamName)
+    public function load(EventStreamFilter $filter)
     {
+        $streamName = $filter->getStreamName();
+
         $version = $this->getCurrentVersion($streamName);
         $cacheKey = md5($streamName . '.' . $version);
         if (isset($this->runtimeCache[$cacheKey])) {
             return $this->runtimeCache[$cacheKey];
         }
+
         $conn = $this->connectionFactory->get();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('event, metadata')
+            ->select('type, number, payload, metadata')
             ->from($this->connectionFactory->getStreamTableName())
-            ->andWhere('stream_name_hash = :stream_name_hash')
-            ->orderBy('commit_version', 'ASC')
-            ->addOrderBy('event_version', 'ASC')
-            ->setParameter('stream_name_hash', md5($streamName));
+            ->andWhere('stream_hash = :stream_hash')
+            ->orderBy('number', 'ASC')
+            ->setParameter('stream_hash', md5($streamName));
 
         $data = $this->unserializeEvents($query);
 
@@ -82,14 +95,14 @@ class DatabaseEventStorage implements EventStorageInterface
     /**
      * @param string $streamName
      * @param array $data
-     * @param int $commitVersion
+     * @param int $expectedVersion
      * @param \Closure $callback
      * @return int
-     * @throws StorageConcurrencyException
+     * @throws \Exception
      */
-    public function commit(string $streamName, array $data, int $commitVersion, \Closure $callback = null)
+    public function commit(string $streamName, array $data, int $expectedVersion, \Closure $callback = null)
     {
-        $stream = new EventStreamData($data, $commitVersion);
+        $stream = new EventStreamData($data, $expectedVersion);
         $connection = $this->connectionFactory->get();
         if ($callback !== null) {
             $connection->beginTransaction();
@@ -102,50 +115,63 @@ class DatabaseEventStorage implements EventStorageInterface
         $query = $queryBuilder
             ->insert($this->connectionFactory->getStreamTableName())
             ->values([
-                'stream_name' => ':stream_name',
-                'stream_name_hash' => ':stream_name_hash',
-                'commit_version' => ':commit_version',
-                'event_version' => ':event_version',
-                'event' => ':event',
+                'stream' => ':stream',
+                'stream_hash' => ':stream_hash',
+                'number' => ':number',
+                'type' => ':type',
+                'type_hash' => ':type_hash',
+                'payload' => ':payload',
                 'metadata' => ':metadata',
-                'recorded_at' => ':recorded_at'
+                'savedat' => ':savedat'
             ])
             ->setParameters([
-                'stream_name' => $streamName,
-                'stream_name_hash' => md5($streamName),
-                'commit_version' => $commitVersion,
-                'recorded_at' => $now,
+                'stream' => $streamName,
+                'stream_hash' => md5($streamName),
+                'savedat' => $now,
             ], [
-                'stream_name' => \PDO::PARAM_STR,
-                'stream_name_hash' => \PDO::PARAM_STR,
+                'stream' => \PDO::PARAM_STR,
+                'stream_hash' => \PDO::PARAM_STR,
                 'version' => \PDO::PARAM_INT,
-                'event' => \PDO::PARAM_STR,
+                'type' => \PDO::PARAM_STR,
+                'payload' => \PDO::PARAM_STR,
                 'metadata' => \PDO::PARAM_STR,
-                'recorded_at' => DateTimeType::DATETIME_MICRO,
+                'savedat' => DateTimeType::DATETIME_MICRO,
             ]);
 
-        $version = 1;
-        array_map(function (EventTransport $eventTransport) use ($query, &$version) {
-            $event = $this->serializer->serialize($eventTransport->getEvent());
-            $metadata = $this->serializer->serialize($eventTransport->getMetaData());
-            $query->setParameter('event_version', $version);
-            $query->setParameter('event', $event);
-            $query->setParameter('metadata', $metadata);
-            $query->execute();
-            $version++;
-        }, $stream->getData());
+        $version = $this->getCurrentVersion($streamName);
+        if ($version + count($data) !== $expectedVersion) {
+            throw new ConcurrencyException(sprintf('Version %d is not egal to expected version %d', $version, $expectedVersion), 1474663323);
+        }
 
-        if ($callback !== null) {
-            try {
-                $callback($commitVersion);
-                $connection->commit();
-            } catch (\Exception $exception) {
-                $connection->rollBack();
-                throw $exception;
+        /** @var EventTransport $eventTransport */
+        foreach ($stream->getData() as $eventTransport) {
+            $version++;
+
+            $type = $this->eventTypeService->getEventType($eventTransport->getEvent());
+
+            $query->setParameter('number', $version);
+            $query->setParameter('type', $type);
+            $query->setParameter('type_hash', md5($type));
+            $query->setParameter('payload', $this->serializer->serialize($eventTransport->getEvent()));
+            $query->setParameter('metadata', $this->serializer->serialize($eventTransport->getMetaData()));
+
+            $query->execute();
+
+            if ($callback !== null) {
+                try {
+                    $callback($eventTransport, $version);
+                } catch (\Exception $exception) {
+                    $connection->rollBack();
+                    throw $exception;
+                }
             }
         }
 
-        return $commitVersion;
+        if ($callback !== null) {
+            $connection->commit();
+        }
+
+        return $expectedVersion;
     }
 
     /**
@@ -157,13 +183,12 @@ class DatabaseEventStorage implements EventStorageInterface
         $conn = $this->connectionFactory->get();
         $queryBuilder = $conn->createQueryBuilder();
         $query = $queryBuilder
-            ->select('commit_version')
+            ->select('number')
             ->from($this->connectionFactory->getStreamTableName())
-            ->andWhere('stream_name_hash = :stream_name_hash')
-            ->orderBy('commit_version', 'DESC')
-            ->addOrderBy('event_version', 'DESC')
+            ->andWhere('stream_hash = :stream_hash')
+            ->orderBy('number', 'DESC')
             ->setMaxResults(1)
-            ->setParameter('stream_name_hash', md5($streamName));
+            ->setParameter('stream_hash', md5($streamName));
 
         $version = (integer)$query->execute()->fetchColumn();
         return $version ?: 0;
@@ -185,10 +210,16 @@ class DatabaseEventStorage implements EventStorageInterface
 
         $data = [];
         foreach ($query->execute()->fetchAll() as $stream) {
-            $data[] = new EventTransport(
-                $this->serializer->unserialize($stream['event']),
-                $this->serializer->unserialize($stream['metadata'])
-            );
+            $eventImplementation = $this->eventTypeService->getEventTypeImplementation($stream['type']);
+
+            /** @var EventInterface $event */
+            $event = $this->serializer->unserialize($stream['payload'], $eventImplementation);
+
+            /** @var MessageMetadata $metadata */
+            $metadata = $this->serializer->unserialize($stream['metadata'], MessageMetadata::class);
+            $metadata->add(Metadata::VERSION, $stream['number']);
+
+            $data[] = new EventTransport($event, $metadata);
         }
         return $data;
     }

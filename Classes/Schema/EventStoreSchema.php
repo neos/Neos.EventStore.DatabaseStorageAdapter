@@ -30,24 +30,35 @@ final class EventStoreSchema
     {
         $table = $schema->createTable($name);
 
-        // UUID4 of the stream
-        $table->addColumn('stream_name', Type::TEXT);
-        $table->addColumn('stream_name_hash', Type::STRING, ['length' => 32]);
+        // Auto increment used for deterministic event ordering
+        $table->addColumn('id', Type::BIGINT, ['unsigned' => true])
+            ->setAutoincrement(true);
 
-        // Version of the aggregate after event was recorded
-        $table->addColumn('commit_version', Type::BIGINT, ['unsigned' => true]);
+        // Stream name and the MD5 Hash of the stream name
+        $table->addColumn('stream', Type::TEXT)
+            ->setNotnull(true);
+        $table->addColumn('stream_hash', Type::STRING, ['length' => 32])
+            ->setNotnull(true);
 
-        // Version of the event in the current commit
-        $table->addColumn('event_version', Type::BIGINT, ['unsigned' => true]);
+        // Event number in the current stream
+        $table->addColumn('number', Type::BIGINT, ['unsigned' => true]);
+
+        // Event type
+        $table->addColumn('type', Type::STRING, ['length' => 1000])
+            ->setNotnull(true);
+        $table->addColumn('type_hash', Type::STRING, ['length' => 32])
+            ->setNotnull(true);
 
         // Events of the stream
-        $table->addColumn('event', Type::TEXT);
+        $table->addColumn('payload', Type::TEXT);
         $table->addColumn('metadata', Type::TEXT);
 
         // Timestamp of the stream
-        $table->addColumn('recorded_at', DateTimeType::DATETIME_MICRO);
+        $table->addColumn('savedat', DateTimeType::DATETIME_MICRO)
+            ->setNotnull(true);
 
-        $table->setPrimaryKey(['stream_name_hash', 'commit_version', 'event_version']);
+        $table->setPrimaryKey(['id']);
+        $table->addUniqueIndex(['stream_hash', 'number'], 'stream_number');
     }
 
     /**
