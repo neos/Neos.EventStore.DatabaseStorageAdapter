@@ -127,7 +127,7 @@ class DatabaseEventStorage implements EventStorageInterface
         $version = 1;
         array_map(function (EventTransport $eventTransport) use ($query, &$version) {
             $event = $this->serializer->serialize($eventTransport->getEvent());
-            $metadata = $this->serializer->serialize($eventTransport->getMetaData());
+            $metadata = $this->serializer->serialize($eventTransport->getMetadata());
             $query->setParameter('event_version', $version);
             $query->setParameter('event', $event);
             $query->setParameter('metadata', $metadata);
